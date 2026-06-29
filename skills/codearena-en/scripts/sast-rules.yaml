@@ -1,0 +1,42 @@
+rules:
+  - id: hardcoded-secret-fallback
+    languages: [javascript]
+    severity: ERROR
+    message: Hardcoded secret fallback (CWE-798).
+    patterns:
+      - pattern: process.env.$X || "..."
+      - metavariable-regex:
+          metavariable: $X
+          regex: (?i).*(secret|jwt|token|key|password).*
+  - id: jwt-verify-no-algorithms
+    languages: [javascript]
+    severity: WARNING
+    message: jwt.verify() without explicit algorithms allowlist (alg-confusion risk).
+    patterns:
+      - pattern: $J.verify($T, $S)
+  - id: jwt-decode-no-verify
+    languages: [javascript]
+    severity: WARNING
+    message: jwt.decode() does not verify signature.
+    pattern: $J.decode(...)
+  - id: eval-code-injection
+    languages: [javascript]
+    severity: ERROR
+    message: eval()/new Function() code injection.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+  - id: child-process-exec
+    languages: [javascript]
+    severity: ERROR
+    message: child_process exec (command injection sink).
+    pattern-either:
+      - pattern: $C.exec(...)
+      - pattern: $C.execSync(...)
+  - id: weak-hash
+    languages: [javascript]
+    severity: WARNING
+    message: Weak hash md5/sha1.
+    pattern-either:
+      - pattern: crypto.createHash("md5")
+      - pattern: crypto.createHash("sha1")

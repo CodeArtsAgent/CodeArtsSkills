@@ -127,7 +127,7 @@ function getPaths(target) {
 
 // ─── manifest ───────────────────────────────────────────────────────────────
 
-function writeManifest(manifestFile, skillsDir, skillNames) {
+function writeManifest(manifestFile, skillsDir, skillNames, bootstrapInfo) {
   const files = [];
   for (const name of skillNames) {
     const dir = path.join(skillsDir, name);
@@ -138,6 +138,7 @@ function writeManifest(manifestFile, skillsDir, skillNames) {
   const manifest = {
     installedAt: new Date().toISOString(),
     skillsDir,
+    bootstrap: bootstrapInfo || null,
     files
   };
   fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
@@ -234,22 +235,74 @@ function ensureUserBootstrap(bootstrapFile, skillsDir) {
   console.log('    Created.');
 }
 
+const SUPEROWERS_BEGIN = '<!-- SUPEROWERS_BEGIN -->';
+const SUPEROWERS_END = '<!-- SUPEROWERS_END -->';
+
+function wrapSuperpowersBlock(content) {
+  return `${SUPEROWERS_BEGIN}\n${content}\n${SUPEROWERS_END}`;
+}
+
+function extractSuperpowersBlock(fileContent) {
+  const beginIdx = fileContent.indexOf(SUPEROWERS_BEGIN);
+  const endIdx = fileContent.indexOf(SUPEROWERS_END);
+  if (beginIdx === -1 || endIdx === -1 || endIdx <= beginIdx) return null;
+  return fileContent.substring(beginIdx + SUPEROWERS_BEGIN.length + 1, endIdx);
+}
+
+function replaceSuperpowersBlock(fileContent, newContent) {
+  const beginIdx = fileContent.indexOf(SUPEROWERS_BEGIN);
+  const endIdx = fileContent.indexOf(SUPEROWERS_END);
+  if (beginIdx === -1 || endIdx === -1 || endIdx <= beginIdx) {
+    // No existing block — append
+    if (fileContent && !fileContent.endsWith('\n')) fileContent += '\n';
+    return fileContent + '\n' + wrapSuperpowersBlock(newContent) + '\n';
+  }
+  const before = fileContent.substring(0, beginIdx);
+  const after = fileContent.substring(endIdx + SUPEROWERS_END.length);
+  return before + wrapSuperpowersBlock(newContent) + after;
+}
+
+function removeSuperpowersBlock(fileContent) {
+  const beginIdx = fileContent.indexOf(SUPEROWERS_BEGIN);
+  const endIdx = fileContent.indexOf(SUPEROWERS_END);
+  if (beginIdx === -1 || endIdx === -1 || endIdx <= beginIdx) return null;
+  const before = fileContent.substring(0, beginIdx);
+  const after = fileContent.substring(endIdx + SUPEROWERS_END.length);
+  // Clean up extra blank lines left behind
+  return (before.replace(/\n+$/, '\n') + after.replace(/^\n+/, '')).trimEnd() + '\n';
+}
+
 function checkProjectBootstrap(bootstrapFile, oldUsingSpContent, newUsingSpPath) {
   if (oldUsingSpContent !== null && fs.existsSync(newUsingSpPath)) {
     const newUsingSpContent = fs.readFileSync(newUsingSpPath, 'utf-8');
     if (oldUsingSpContent !== newUsingSpContent) {
       printDiff(oldUsingSpContent, newUsingSpContent);
       console.log('');
-      console.log('  CODEARTS.md embeds using-superpowers content for session bootstrap.');
-      console.log('  Review the diff above and update CODEARTS.md accordingly.');
-      console.log('  Key sections: Red Flags table, Skill Priority, Instruction Priority.');
+      if (fs.existsSync(bootstrapFile)) {
+        let bootstrapContent = fs.readFileSync(bootstrapFile, 'utf-8');
+        const oldBlock = extractSuperpowersBlock(bootstrapContent);
+        if (oldBlock !== null) {
+          bootstrapContent = replaceSuperpowersBlock(bootstrapContent, newUsingSpContent);
+          fs.writeFileSync(bootstrapFile, bootstrapContent);
+          console.log('  Updated CODEARTS.md with latest using-superpowers content.');
+        } else {
+          console.log('  ⚠️  Superpowers block not found in CODEARTS.md — update manually.');
+        }
+      } else {
+        console.log('  ⚠️  CODEARTS.md not found — create it with the updated content.');
+      }
     } else {
       console.log('    No changes to using-superpowers — CODEARTS.md is fine.');
     }
   } else if (!fs.existsSync(bootstrapFile)) {
     console.log('    ⚠️  CODEARTS.md not found. Create it with using-superpowers bootstrap content.');
   } else {
-    console.log('    First install — ensure CODEARTS.md exists with bootstrap content.');
+    // First install — write the delimited block
+    const newUsingSpContent = fs.readFileSync(newUsingSpPath, 'utf-8');
+    let bootstrapContent = fs.readFileSync(bootstrapFile, 'utf-8');
+    bootstrapContent = replaceSuperpowersBlock(bootstrapContent, newUsingSpContent);
+    fs.writeFileSync(bootstrapFile, bootstrapContent);
+    console.log('    Appended Superpowers block to CODEARTS.md.');
   }
 }
 
@@ -315,17 +368,23 @@ function cmdInit(target, paths) {
   console.log('\n==> Registering skills...');
   updateStatusFile(statusFile, skillsDir, 'enable', installedSkills);
 
-  // Manifest
-  console.log('\n==> Writing manifest...');
-  writeManifest(manifestFile, skillsDir, installedSkills);
-
-  // Bootstrap
+  // Bootstrap (before manifest so we can capture content)
   console.log('\n==> Checking bootstrap...');
+  let bootstrapInfo = null;
   if (target === 'user') {
     ensureUserBootstrap(bootstrapFile, skillsDir);
+    bootstrapInfo = { type: 'user', file: bootstrapFile };
   } else {
-    checkProjectBootstrap(bootstrapFile, null, path.join(skillsDir, 'using-superpowers', 'SKILL.md'));
+    const usingSpPath = path.join(skillsDir, 'using-superpowers', 'SKILL.md');
+    if (fs.existsSync(usingSpPath)) {
+      bootstrapInfo = { type: 'project', file: bootstrapFile, usingSpContent: fs.readFileSync(usingSpPath, 'utf-8') };
+    }
+    checkProjectBootstrap(bootstrapFile, null, usingSpPath);
   }
+
+  // Manifest
+  console.log('\n==> Writing manifest...');
+  writeManifest(manifestFile, skillsDir, installedSkills, bootstrapInfo);
 
   // Cleanup
   rmDir(tmpDir);
@@ -369,14 +428,12 @@ function cmdUpdate(target, paths) {
   console.log('\n==> Checking for new skills...');
   updateStatusFile(statusFile, skillsDir, 'enable', updatedSkills);
 
-  // Manifest
-  console.log('\n==> Updating manifest...');
-  writeManifest(manifestFile, skillsDir, updatedSkills);
-
-  // Bootstrap
+  // Bootstrap (before manifest so we can capture content)
   console.log('\n==> Checking bootstrap...');
+  let bootstrapInfo = null;
   if (target === 'user') {
     ensureUserBootstrap(bootstrapFile, skillsDir);
+    bootstrapInfo = { type: 'user', file: bootstrapFile };
     if (oldUsingSpContent !== null) {
       const newUsingSp = path.join(skillsDir, 'using-superpowers', 'SKILL.md');
       if (fs.existsSync(newUsingSp)) {
@@ -389,8 +446,16 @@ function cmdUpdate(target, paths) {
       }
     }
   } else {
-    checkProjectBootstrap(bootstrapFile, oldUsingSpContent, path.join(skillsDir, 'using-superpowers', 'SKILL.md'));
+    const usingSpPath = path.join(skillsDir, 'using-superpowers', 'SKILL.md');
+    if (fs.existsSync(usingSpPath)) {
+      bootstrapInfo = { type: 'project', file: bootstrapFile, usingSpContent: fs.readFileSync(usingSpPath, 'utf-8') };
+    }
+    checkProjectBootstrap(bootstrapFile, oldUsingSpContent, usingSpPath);
   }
+
+  // Manifest
+  console.log('\n==> Updating manifest...');
+  writeManifest(manifestFile, skillsDir, updatedSkills, bootstrapInfo);
 
   // Cleanup
   rmDir(tmpDir);
@@ -448,6 +513,33 @@ function cmdDelete(target, paths) {
   console.log('\n==> Updating status file...');
   if (fs.existsSync(statusFile)) {
     updateStatusFile(statusFile, skillsDir, 'disable', [...superpowersSkillNames]);
+  }
+
+  // Clean up bootstrap
+  if (manifest.bootstrap) {
+    console.log('\n==> Cleaning up bootstrap...');
+    const { type, file, usingSpContent } = manifest.bootstrap;
+    if (type === 'user') {
+      if (fs.existsSync(file)) {
+        try {
+          fs.unlinkSync(file);
+          console.log(`    Removed: ${file}`);
+        } catch (e) {
+          console.error(`    Failed to remove bootstrap: ${file} (${e.message})`);
+        }
+      }
+    } else if (type === 'project') {
+      if (fs.existsSync(file)) {
+        let content = fs.readFileSync(file, 'utf-8');
+        const cleaned = removeSuperpowersBlock(content);
+        if (cleaned !== null) {
+          fs.writeFileSync(file, cleaned);
+          console.log(`    Removed Superpowers block from ${file}`);
+        } else {
+          console.log(`    Superpowers block not found in ${file} — may have been removed already.`);
+        }
+      }
+    }
   }
 
   // Remove manifest
