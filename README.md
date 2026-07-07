@@ -139,6 +139,48 @@ After installation, restart CodeArts. Verify by asking: "Open https://example.co
 
 ---
 
+### openspec-installer
+
+One-click installer for [OpenSpec](https://github.com/Fission-AI/OpenSpec) — the spec-driven development (SDD) framework for AI coding assistants. OpenSpec's official installer does not support CodeArts; this skill bridges the gap by generating the self-contained OpenSpec skills (via the `trae` donor tool, which has no command adapter) and placing them where CodeArts reads skills. Installs **skills only** — run `openspec init` in each project to create its `openspec/` spec directory.
+
+**Installation:**
+
+```bash
+npx skills add https://github.com/codeartsagent/codeartsskills --skill openspec-installer -a codearts-agent
+```
+
+**Usage — four commands:**
+
+```bash
+node skills/openspec-installer/scripts/installer.js init     [--project|--user]
+node skills/openspec-installer/scripts/installer.js update   [--project|--user]
+node skills/openspec-installer/scripts/installer.js delete   [--project|--user]
+node skills/openspec-installer/scripts/installer.js status   [--project|--user]
+```
+
+| Command | Description |
+|---------|-------------|
+| `init` | Generate OpenSpec skills via `openspec init --tools trae --profile core`, copy `openspec-*` into the skills dir, register in status file |
+| `update` | Regenerate skills from the installed `openspec` CLI's latest content, overwrite installed skills, refresh manifest |
+| `delete` | Remove tracked `openspec-*` skills, clear status entries, remove manifest (leaves `openspec/` spec data intact) |
+| `status` | Report openspec CLI version, installed skills, status entries, manifest; exit 0 if healthy, 1 otherwise |
+
+**Target selection:**
+
+| Flag | Scope | Skills Path | Status File |
+|------|-------|-------------|-------------|
+| `--project` | Single project | `<project>/.codeartsdoer/skills/` | `ProjectSkillStatus.txt` |
+| `--user` | All projects | `~/.codeartsdoer/skills/` | `UserSkillStatus.txt` |
+| _(omit)_ | Auto-detect | Project if `.codeartsdoer/` exists in cwd, else user | — |
+
+**ALSO, YOU CAN USE NATURAL LANGUAGE TO LET THIS SKILL TO INSTALL/UPDATE/DELETE OpenSpec for you.**
+
+**Requirements:** Node.js ≥ 20.19.0 (OpenSpec requirement) and npm. If the `openspec` CLI is missing, `init`/`update` auto-install it globally (`npm i -g @fission-ai/openspec@latest`). Works on Windows, Linux, and macOS.
+
+After installation, restart CodeArts. Create the project spec dir with `openspec init`, then verify by asking: "Propose a new feature using OpenSpec".
+
+---
+
 ### codearena-cn
 
 评测/对比基于同一需求的多个Agent代码实现并打分。按两套独立 rubric（通用 Basic /100 + 本轮需求 Round /100，各加最高 +10 动态加分）评测，产出中英双语报告，覆盖 API / 视觉 / SAST / 架构 / 治理 / 覆盖率评测。
