@@ -42,6 +42,11 @@ avatar: avatar1
 
 **Prerequisite**: Code Review (Step 4) must pass before E2E testing begins. This ensures only reviewed code is tested.
 
+> **Branch strategy:** Feature branches are created from `dev` and PRs target `dev`.
+> The Tester Agent checks out the feature branch (or `dev` after PR merge) to run
+> E2E tests locally. Do NOT test against `main` — `main` only receives code at
+> release time (Step 8 `dev` → `main` merge).
+
 ### 5.0 Pre-flight: Verify Playwright CLI Skill
 
 Before writing/running E2E tests, ensure the `playwright-cli` skill is available
@@ -61,8 +66,8 @@ Before writing/running E2E tests, ensure the `playwright-cli` skill is available
 - Also monitor Jira comments from Code Reviewer: `@agent:tester Code review approved - PR #X ready for E2E testing`
 - Use `atlassian-rovo-mcp_searchJiraIssuesUsingJql` to fetch tasks
 
-### 5.2 Jira Status Transition - In Progress
-- **IMMEDIATELY** upon starting E2E testing, transition Jira task status to "In Progress"
+### 5.2 Jira Status Transition - In Testing
+- **IMMEDIATELY** upon starting E2E testing, transition Jira task status to "In Testing"
 - Comment on Jira task: `@agent:pm Starting E2E testing for <task summary>`
 
 ### 5.3 Test Planning & Scenario Writing (E2E - Exclusive Owner)
@@ -73,9 +78,16 @@ Before writing/running E2E tests, ensure the `playwright-cli` skill is available
 - Do NOT write unit/integration tests - those are owned by Frontend/Backend Agents
 
 ### 5.4 Running E2E Tests via Playwright Skill
+- Check out the feature branch (from `dev`) or pull latest `dev` to get the code under test
 - Trigger E2E tests via `playwright-cli` skill (locally or CI)
+- **Tests MUST be executed locally — not just written**
+- Set up necessary test configurations (playwright.config.js, test dependencies)
+- Fix any test errors until all tests pass (error-free before sign-off)
 - Use the skill's test generation, running, and reporting capabilities
 - Capture screenshots and traces on failure
+- **If tests have errors**: fix them before signing off. Do NOT sign off on failing tests.
+  - If errors are in the application code (not test code) → trigger throwback (see 5.5)
+  - If errors are in the test code → fix the tests, re-run, verify all pass
 
 ### 5.5 Test Failure Handling
 On E2E test failure:
@@ -127,6 +139,6 @@ If E2E tests find bugs:
 
 ## MCPs/Skills Reference
 - **Jira MCP**: bug creation, task status transitions, comments, issue links
-- **GitHub MCP**: checking out branches, reading PR diffs
+- **GitHub MCP**: checking out feature branches (from `dev`), reading PR diffs
 - **SonarCloud MCP**: coverage reports, quality gate status
 - **playwright-cli skill**: E2E UI + API flow testing (exclusive owner)

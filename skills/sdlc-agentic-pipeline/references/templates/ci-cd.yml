@@ -1,18 +1,42 @@
 # CI/CD Pipeline Template
 #
-# Flow: sonar-scan -> build -> deploy-to-jfrog
-#   - sonar-scan and deploy-to-jfrog are fixed (same for every project)
-#   - build is GENERIC: replace the placeholder steps with the setup +
-#     build commands for your project's language/framework.
+# Flow: build -> sonar-scan -> sonar-qg-check -> deploy-to-jfrog -> verify-jfrog
+#
+# Stage order rationale (prevents resource waste and faulty code deployment):
+#   1. build         - Install deps, verify code compiles (fail fast)
+#   2. sonar-scan    - Run tests with coverage + SonarCloud analysis
+#   3. sonar-qg-check - Quality Gate check (BLOCK deploy if QG fails)
+#   4. deploy-to-jfrog - Docker build + push to JFrog (only if QG passes)
+#   5. verify-jfrog  - Verify artifact exists in JFrog
+#
+# AUTO-TRIGGERED on push to dev branch (no manual trigger needed).
+# Also supports manual workflow_dispatch trigger.
+#
+# CACHING: pip, node_modules, and Docker layers are cached for faster builds.
+#
+# NODE.JS: Use Node.js 22 (LTS) or later in setup actions. Node.js 18 is unsupported
+# by newer SonarScanner versions.
+#
+# DEPRECATION FIXES:
+#   - FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true suppresses Node.js 20 deprecation warnings
+#   - Uses SonarSource/sonarcloud-github-action@master (NOT sonarqube-scan-action).
+#     The sonarqube-scan-action runs in Docker with bundled Node.js 18 which fails.
+#     Revert to sonarqube-scan-action when SonarSource fixes Docker/Node.js compat.
 #
 # Required GitHub Action secrets (add under Settings -> Secrets and variables -> Actions):
 #   SONAR_TOKEN           - SonarCloud authentication token
+#   JFROG_PASSWORD        - JFrog password / access token
+#   (GITHUB_TOKEN is auto-provided by GitHub Actions - no need to add it manually)
+#
+# Required GitHub Action variables (add under Settings -> Secrets and variables -> Actions -> Variables tab):
 #   JFROG_PLATFORM_URL    - JFrog platform base URL (e.g. https://<org>.jfrog.io)
 #   JFROG_DOCKER_REGISTRY - JFrog Docker registry hostname
-#   JFROG_USERNAME        - JFrog user account
-#   JFROG_PASSWORD        - JFrog password / access token
+#   JFROG_USERNAME        - JFrog user account (email address)
 #   JFROG_PROJECT         - JFrog project key
-#   (GITHUB_TOKEN is auto-provided by GitHub Actions - no need to add it manually)
+#   SONAR_PROJECT_KEY     - SonarCloud project key
+#
+# NOTE: Use vars.* for non-secret values (URL, registry, username, project)
+#       and secrets.* only for sensitive values (password, tokens).
 #
 # Placeholders to replace per project:
 #   <GITHUB_REPO>      - repository name (used for image name & build name)
@@ -23,18 +47,22 @@ name: CI/CD Pipeline
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - dev
 
 env:
-  JFROG_PLATFORM_URL: ${{ secrets.JFROG_PLATFORM_URL }}
-  JF_DOCKER_REGISTRY: ${{ secrets.JFROG_DOCKER_REGISTRY }}
-  JF_USER: ${{ secrets.JFROG_USERNAME }}
+  JFROG_PLATFORM_URL: ${{ vars.JFROG_PLATFORM_URL }}
+  JF_DOCKER_REGISTRY: ${{ vars.JFROG_DOCKER_REGISTRY }}
+  JF_USER: ${{ vars.JFROG_USERNAME }}
   JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
   JF_BUILD_NAME: <GITHUB_REPO>-build
   JF_BUILD_NUMBER: ${{ github.run_number }}
-  JF_PROJECT: ${{ secrets.JFROG_PROJECT }}
+  JF_PROJECT: ${{ vars.JFROG_PROJECT }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  sonar-scan:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -42,33 +70,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  build:
-    needs:
-      - sonar-scan
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
       # ============================================================
-      # GENERIC BUILD SECTION
+      # GENERIC BUILD SECTION (with caching)
       # Replace the placeholder steps below with the setup + build
       # commands for YOUR project (npm, mvn, gradle, dotnet, go,
-      # python, docker, etc.). sonar-scan (above) and deploy-to-jfrog
-      # (below) stay the same regardless of project type.
+      # python, docker, etc.). This stage verifies code compiles
+      # and installs dependencies. Tests run in the next stage.
+      # Caching: uncomment the relevant cache step for your stack.
       # ============================================================
 
       - name: Set up build toolchain
         uses: <SETUP_ACTION>@<VERSION>
         # e.g. actions/setup-node@v4, actions/setup-java@v4,
         #      actions/setup-python@v5, actions/setup-go@v5
+
+      # --- Python cache (uncomment if backend is Python) ---
+      # - name: Cache pip packages
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.cache/pip
+      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      #     restore-keys: ${{ runner.os }}-pip-
+
+      # --- Node.js cache (uncomment if frontend is Node.js) ---
+      # - name: Cache node_modules
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: frontend/node_modules
+      #     key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+      #     restore-keys: ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: <INSTALL_COMMAND>
@@ -80,9 +110,64 @@ jobs:
         # e.g. npm run build, npx ng build --configuration=production,
         #      mvn package, dotnet build, go build ./...
 
-  deploy-to-jfrog:
+  sonar-scan:
     needs:
       - build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ============================================================
+      # TEST + COVERAGE + SONARCLOUD SCAN SECTION
+      # Tests MUST run before SonarCloud scan so coverage data is
+      # available for Quality Gate evaluation. Replace the placeholder
+      # steps below with your project's test runner + coverage tool.
+      # ============================================================
+
+      - name: Set up build toolchain
+        uses: <SETUP_ACTION>@<VERSION>
+
+      # --- Cache steps (same as build stage) ---
+
+      - name: Install dependencies
+        run: <INSTALL_COMMAND>
+
+      - name: Run tests with coverage
+        run: <TEST_COVERAGE_COMMAND>
+        # e.g. npx vitest run --coverage, pytest --cov, mvn test jacoco:report
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  sonar-qg-check:
+    needs:
+      - sonar-scan
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check SonarCloud Quality Gate
+        run: |
+          QG_STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ vars.SONAR_PROJECT_KEY }}" \
+            | jq -r '.projectStatus.status')
+          if [ "$QG_STATUS" != "OK" ]; then
+            echo "ERROR: SonarCloud Quality Gate FAILED ($QG_STATUS)"
+            echo "Docker image will NOT be built or pushed to JFrog"
+            exit 1
+          fi
+          echo "SonarCloud Quality Gate PASSED - proceeding to deploy"
+
+  deploy-to-jfrog:
+    needs:
+      - sonar-qg-check
 
     runs-on: ubuntu-latest
 
@@ -117,17 +202,31 @@ jobs:
             -u "${{ env.JF_USER }}" \
             --password-stdin
 
-      - name: Build Docker Image
-        run: |
-          docker build \
-            -t ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }} \
-            -t ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest \
-            .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Push Docker Image
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }}
+            ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Move Docker cache
         run: |
-          docker push ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }}
-          docker push ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Publish Build Info
         run: |
@@ -135,3 +234,25 @@ jobs:
             "${{ env.JF_BUILD_NAME }}" \
             "${{ env.JF_BUILD_NUMBER }}" \
             --project="${{ env.JF_PROJECT }}"
+
+  verify-jfrog:
+    needs:
+      - deploy-to-jfrog
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify Docker image in JFrog
+        run: |
+          PLATFORM_URL="${{ env.JFROG_PLATFORM_URL }}"
+          PLATFORM_URL="${PLATFORM_URL%/}"
+          IMAGE_URL="${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest"
+          echo "Verifying image at: ${PLATFORM_URL}/artifactory/api/docker/<JFROG_REPO_KEY>/v2/<GITHUB_REPO>/manifests/latest"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ env.JF_USER }}:${{ env.JF_PASSWORD }}" \
+            "${PLATFORM_URL}/artifactory/api/docker/<JFROG_REPO_KEY>/v2/<GITHUB_REPO>/manifests/latest")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "ERROR: Docker image not found in JFrog (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "JFrog artifact verified: $IMAGE_URL"
