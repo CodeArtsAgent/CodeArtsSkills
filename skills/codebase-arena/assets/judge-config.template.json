@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "publicPackages": [],
+  "sealedPrivatePackages": [],
+  "rawRunRoots": [],
+  "tokenComparability": "native-model",
+  "incompleteRunPolicy": "score-as-unfinished",
+  "cleanupErrorPolicy": "treat-as-execution-integrity-failure",
+  "outputPolicy": {
+    "layoutVersion": 2,
+    "evaluationRoot": ".codebase-eval",
+    "roundId": "round-001",
+    "roundRoot": ".codebase-eval/round-001",
+    "reportDirectoryName": "report",
+    "judgeRunId": "judge--20260713T180000Z",
+    "reportRoot": ".codebase-eval/round-001/report/judge--20260713T180000Z"
+  },
+  "locales": ["zh-CN", "en"]
+}

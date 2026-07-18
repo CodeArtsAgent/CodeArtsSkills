@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 3,
+  "kind": "codebase-eval-execution-contract",
+  "identity": {
+    "roundId": "round-001",
+    "releaseId": "release-001",
+    "track": "code-only",
+    "repository": ".",
+    "baseRevision": "replace-with-base-revision",
+    "caseIdDigest": "replace-with-case-id-digest"
+  },
+  "executionPolicy": {
+    "caseSelection": "all-released-cases",
+    "maximumAttempts": 2,
+    "childConcurrency": 2,
+    "caseConcurrency": 1,
+    "caseCoordinatorPerCase": true,
+    "freshCaseCoordinatorPerCase": true,
+    "workerConcurrencyPerCase": 1,
+    "workerSpawnOwner": "case-coordinator",
+    "perCaseTimeoutMs": 3600000,
+    "promptLocaleSource": "fixed-en",
+    "freshChildPerAttempt": true,
+    "noInheritedContext": true,
+    "directProjectExecution": true,
+    "serialExecution": true,
+    "initialProjectSnapshot": "required-before-first-attempt",
+    "baselineSnapshotScope": "git-tracked-and-nonignored-untracked",
+    "gitIgnoredContent": "excluded-from-snapshot-managed-by-cleanup-controls",
+    "gitMetadataHandling": "private-snapshot-semantic-verification",
+    "protocolDirectoryCleanup": "required-before-next-attempt",
+    "snapshotAfterAttempt": true,
+    "rollbackToBaselineAfterAttempt": true,
+    "projectRestoration": "case-coordinator-deterministic-from-snapshot",
+    "initialSnapshotOwner": "main-coordinator",
+    "completedSnapshotAndRollbackOwner": "case-coordinator",
+    "dependencyMutationDuringRun": "forbidden",
+    "dirtyDataCleanupPerAttempt": true,
+    "stopRunOnCleanupError": true,
+    "stopRunOnChildIsolationViolation": true
+  },
+  "evidenceRequirements": {
+    "finalResponseFormat": "markdown",
+    "activityLogRequired": true,
+    "commandAndTestLogsRequiredWhenExecuted": true,
+    "collectInspectedAndCitedLocationsWhenObservable": true,
+    "retrievalSummaryRequired": true,
+    "maximumRetrievalKeyActions": 8,
+    "retainFullRetrievalTrace": false,
+    "collectChainOfThought": false
+  },
+  "environmentPolicy": {
+    "installationPolicy": "ask-before-install-before-cases",
+    "dependencyMutationsDuringRun": "forbidden",
+    "credentialRequirementIds": []
+  },
+  "serviceReadiness": [],
+  "cleanupPolicy": {
+    "status": "verified-before-release",
+    "processTreeTermination": "required",
+    "outsideSnapshotWrites": "forbidden-unless-declared",
+    "controls": []
+  }
+}

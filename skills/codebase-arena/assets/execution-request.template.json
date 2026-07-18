@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "workflow": "execute",
+  "system": { "id": "codearts", "label": "CodeArts" },
+  "contract": {
+    "path": ".codebase-eval/round-001/evalset/code-only/execution-contract.json",
+    "releaseId": "release-001",
+    "sha256": "replace-with-contract-sha256"
+  },
+  "publicPackage": ".codebase-eval/round-001/evalset/code-only",
+  "tokenEvidence": { "availability": "available", "source": "product-native" },
+  "activityTrace": { "source": "product-native-or-worker-journal" },
+  "environmentVerification": {
+    "status": "verified-and-sealed-before-cases",
+    "baselineId": "replace-with-verified-environment-baseline-id",
+    "evidencePaths": [],
+    "verifiedCredentialRequirementIds": [],
+    "serviceVerification": []
+  },
+  "runConstraints": { "userProvidedCostLimit": null },
+  "environmentDecisions": [],
+  "output": {
+    "layoutVersion": 2,
+    "evaluationRoot": ".codebase-eval",
+    "roundId": "round-001",
+    "roundRoot": ".codebase-eval/round-001",
+    "evalsetDirectoryName": "evalset",
+    "reportDirectoryName": "report",
+    "productDirectoryName": "codearts",
+    "executionRunId": "exec-001",
+    "runRoot": ".codebase-eval/round-001/codearts/exec-001"
+  },
+  "confirmation": {
+    "status": "confirmed",
+    "confirmedBy": "user",
+    "confirmedAt": "ISO-8601",
+    "notes": { "zh-CN": "", "en": "" }
+  }
+}

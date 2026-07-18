@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 3,
+  "taskId": "",
+  "attempt": 1,
+  "status": "clean",
+  "completedAt": "",
+  "owner": "evaluated-product-case-coordinator",
+  "workspaceEvidencePreserved": true,
+  "attemptOwnedProcesses": [
+    { "id": "example-process-tree", "status": "not-created", "evidence": "" }
+  ],
+  "externalResources": [
+    { "id": "example-database-namespace", "status": "not-created", "evidence": "" }
+  ],
+  "outsideProjectPaths": [
+    { "id": "example-path", "status": "not-created", "evidence": "" }
+  ],
+  "cacheAndTempPaths": [
+    { "id": "example-cache", "status": "not-created", "evidence": "" }
+  ],
+  "environmentRestored": true,
+  "evidencePaths": [],
+  "dirtyDataRemaining": [],
+  "protocolViolations": []
+}

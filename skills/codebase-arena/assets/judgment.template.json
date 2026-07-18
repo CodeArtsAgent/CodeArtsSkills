@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 3,
+  "system": "cursor",
+  "caseId": "case-001",
+  "promptLocale": "en",
+  "difficulty": "L3",
+  "taskType": "diagnose",
+  "generationLoad": "none",
+  "dimensions": {
+    "capabilities": ["bug_diagnosis"],
+    "retrievalTool": "codebase-index"
+  },
+  "score": 8.5,
+  "status": "pass",
+  "criteria": [
+    { "id": "core", "awarded": 3.5, "evidence": { "zh-CN": "", "en": "" } },
+    { "id": "localization", "awarded": 2.0, "evidence": { "zh-CN": "", "en": "" } },
+    { "id": "reasoning", "awarded": 1.5, "evidence": { "zh-CN": "", "en": "" } },
+    { "id": "impact", "awarded": 1.0, "evidence": { "zh-CN": "", "en": "" } },
+    { "id": "verification", "awarded": 0.5, "evidence": { "zh-CN": "", "en": "" } }
+  ],
+  "capsApplied": [],
+  "verificationEvidencePath": "verification-results/cursor/case-001.json",
+  "tokens": 42000,
+  "durationMs": 180000,
+  "durationAssessment": {
+    "actualDurationMs": 180000,
+    "referenceTimeoutMs": 3600000,
+    "timeoutRatio": 0.05,
+    "band": "within-quarter",
+    "scoreAdjustment": 0
+  },
+  "critical": false,
+  "unfinished": false
+}

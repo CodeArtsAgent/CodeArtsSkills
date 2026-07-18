@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "workflow": "judge",
+  "inputs": {
+    "publicPackages": [],
+    "sealedPrivatePackages": [],
+    "rawRunRoots": []
+  },
+  "output": {
+    "layoutVersion": 2,
+    "evaluationRoot": ".codebase-eval",
+    "roundId": "",
+    "roundRoot": "",
+    "reportDirectoryName": "report",
+    "judgeRunId": "",
+    "reportRoot": ""
+  },
+  "reportPurpose": {
+    "decision": { "zh-CN": "", "en": "" },
+    "audience": { "zh-CN": "", "en": "" }
+  },
+  "comparisonPolicy": {
+    "includedSystems": "all-validated-runs",
+    "productLabelOverrides": {},
+    "incompleteRunPolicy": "score-as-unfinished",
+    "executionSchemaPolicy": "require-v5-no-version-mixing",
+    "restorationEvidencePolicy": "require-clean-compact-integrity-no-report-side-execution",
+    "cleanupErrorPolicy": "treat-as-execution-integrity-failure",
+    "evidenceGapPolicy": "report-and-cap-affected-criteria",
+    "tokenComparability": "derive-from-run-evidence"
+  },
+  "verificationEnvironment": {
+    "requiredCredentialNames": [],
+    "credentialReadiness": "derive-and-reverify-from-sealed-package",
+    "environmentDecisions": []
+  },
+  "fixedDefaults": {
+    "locales": ["zh-CN", "en"],
+    "singleScorePerSystemCase": true
+  },
+  "confirmation": {
+    "status": "confirmed",
+    "confirmedBy": "",
+    "confirmedAt": "",
+    "notes": { "zh-CN": "", "en": "" }
+  }
+}

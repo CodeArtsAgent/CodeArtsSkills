@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 4,
+  "locales": ["zh-CN", "en"],
+  "plannedTotal": 15,
+  "coverage": [
+    { "dimension": "capability", "key": "code_retrieval", "minCount": 3 },
+    { "dimension": "capability", "key": "architecture_conventions", "minCount": 3 },
+    { "dimension": "capability", "key": "behavior_workflows", "minCount": 3 },
+    { "dimension": "capability", "key": "dependency_impact", "minCount": 3 },
+    { "dimension": "capability", "key": "bug_diagnosis", "minCount": 3 }
+  ],
+  "taskTypeTargets": {
+    "retrieve_explain": 6,
+    "impact_analyze": 5,
+    "diagnose": 4
+  },
+  "generationLoadTargets": {
+    "none": 15,
+    "low": 0,
+    "medium": 0
+  },
+  "generationLoadPolicy": {
+    "allowed": ["none"],
+    "minimumNoneRatio": 1,
+    "minimumNoneAndLowRatio": 1,
+    "maximumMediumRatio": 0
+  },
+  "authoringPolicy": {
+    "mode": "read-only-code-understanding",
+    "sourceMutation": "forbidden",
+    "projectExecution": "forbidden",
+    "requiredCitationForm": "repository-root-relative-path-symbol-line-range",
+    "resultSurface": "final-response-and-static-frozen-source"
+  },
+  "retrievalToolTargets": {
+    "grep-glob-read": 5,
+    "codebase-index": 5,
+    "hybrid": 5
+  },
+  "retrievalToolPolicy": {
+    "requiredPerRetrievalTool": 5,
+    "allowedExpectedToolCalls": ["grep", "glob", "read", "codebase-index", "symbol-search", "reference-search"],
+    "publicProjectionIncludesRetrievalMetadata": false,
+    "scoreDependsOnToolChoice": false
+  },
+  "automaticEvaluationTarget": 15,
+  "caseConcepts": [],
+  "notes": { "zh-CN": [], "en": [] }
+}

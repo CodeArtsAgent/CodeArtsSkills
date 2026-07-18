@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "taskId": "",
+  "attempt": 1,
+  "status": "clean",
+  "completedAt": "",
+  "owner": "evaluated-product-case-coordinator",
+  "completedStateSnapshotPath": "",
+  "restoreEvidencePath": "project-restore-evidence.json",
+  "baselineRestored": true,
+  "protocolDirectoryRemoved": true,
+  "evidencePaths": [],
+  "dirtyDataRemaining": []
+}
