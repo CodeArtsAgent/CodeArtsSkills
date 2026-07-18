@@ -1,0 +1,38 @@
+{
+  "locales": ["zh-CN", "en"],
+  "policy": "reuse-compatible-local-otherwise-ask",
+  "requirements": [
+    {
+      "id": "runtime-node",
+      "component": "node",
+      "category": "runtime",
+      "requiredForSelectedCases": true,
+      "requirement": {
+        "mode": "minimum",
+        "version": "20.0.0",
+        "maximumExclusiveVersion": null,
+        "raw": ">=20",
+        "source": "package.json#engines.node"
+      },
+      "local": {
+        "version": "22.0.0",
+        "source": "node --version"
+      },
+      "comparison": "higher",
+      "decision": {
+        "status": "reuse-local",
+        "approval": null
+      },
+      "finalVerifiedVersion": "22.0.0",
+      "notes": {
+        "zh-CN": "本地版本满足最低版本要求。",
+        "en": "The local version satisfies the minimum requirement."
+      }
+    }
+  ],
+  "summary": {
+    "zh-CN": "复用满足约束的本地环境；其他环境必须先询问用户。",
+    "en": "Reuse compatible local environments; ask the user before any other environment action."
+  },
+  "warnings": { "zh-CN": [], "en": [] }
+}

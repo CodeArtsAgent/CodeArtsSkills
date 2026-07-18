@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codebase Arena"
+  short_description: "生成、执行并独立评审双语 Codebase 能力评测集"
+  default_prompt: "Use $codebase-arena to generate, execute, or independently judge a bilingual codebase evaluation workflow."

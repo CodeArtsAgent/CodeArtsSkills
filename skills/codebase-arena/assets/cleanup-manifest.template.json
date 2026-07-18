@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "roundId": "",
+  "judgeRunId": "",
+  "completedAt": "",
+  "resultCheckCleanupAudits": [],
+  "judgeTemporaryResources": [],
+  "productCleanupResults": [],
+  "remainingDirtyData": [],
+  "retainedInitialProjectSnapshots": [],
+  "retainedCompletedStateSnapshots": [],
+  "retainedEvidenceRoots": [],
+  "deletedProductEvidence": false,
+  "deletedInitialProjectSnapshots": false,
+  "deletedCompletedStateSnapshots": false,
+  "status": "clean"
+}

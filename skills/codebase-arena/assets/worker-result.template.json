@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 3,
+  "taskId": "cursor--case-001--en",
+  "attempt": 1,
+  "system": "cursor",
+  "caseId": "case-001",
+  "promptLocale": "en",
+  "child": {
+    "agentId": "fresh-child-id",
+    "sessionId": "fresh-session-id",
+    "contextInherited": false
+  },
+  "startedAt": "2026-07-16T19:42:07Z",
+  "completedAt": "2026-07-16T19:45:07Z",
+  "status": "completed",
+  "finalResponsePath": "final-response.md",
+  "logPaths": ["session.log"],
+  "evidence": {
+    "activityLogPath": ".codebase-eval-worker/activity-log.jsonl",
+    "activityLogSource": "host-native",
+    "commandLogPaths": [],
+    "testLogPaths": [],
+    "deliverablePaths": [],
+    "inspectedRepositoryLocations": [],
+    "citedRepositoryLocations": [],
+    "retrievalEvidence": {
+      "source": "host-native",
+      "actions": [
+        {
+          "tool": "reference-search",
+          "role": "discovery",
+          "target": "symbol or concept",
+          "outcome": "key references located"
+        }
+      ],
+      "gaps": []
+    },
+    "gaps": []
+  },
+  "tokens": 42000,
+  "tokenEvidence": { "availability": "available", "source": "product-native", "comparable": false },
+  "durationMs": 180000,
+  "unfinished": false,
+  "environmentBaselineId": "sealed-environment-id",
+  "protocolViolations": []
+}

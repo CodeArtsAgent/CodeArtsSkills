@@ -1,5 +1,5 @@
 ---
-name: codearena-cn
+name: code-arena-cn
 description: "评测/对比同一需求(或同一代码仓多个分支)的多个代码实现并打分。当用户要『开始一轮评测/评估项目』『对比同一需求下的多个实现』『对比一个仓库的多个分支』『按 basic + round rubric 打分』『跑 API/视觉/SAST/架构/治理/覆盖率评测并出中英双语报告』时使用。"
 ---
 

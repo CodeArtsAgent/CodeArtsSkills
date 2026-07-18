@@ -1,5 +1,5 @@
 ---
-name: codearena-en
+name: code-arena-en
 description: "Evaluate, score, and compare multiple implementations of the same requirement — different builds, or multiple branches of one repo. Use when the user asks to start/run an evaluation round, compare several implementations, compare branches of a repo, score projects against the basic + round rubrics, or run API / visual / SAST / architecture / governance / coverage checks and produce a bilingual (English + Chinese) report."
 ---
 

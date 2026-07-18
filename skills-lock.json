@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "skills": {
+    "office-mcp": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "skillPath": "office-mcp/SKILL.md",
+      "computedHash": "50f55faef29ff1e3c30a7657121fbf01fcb39aad549d09745894530abe4de913"
+    },
+    "skill-installer": {
+      "source": "/Users/zengjiali/Workspace/CodeArtsSkills",
+      "sourceType": "local",
+      "computedHash": "f2707853d39dd12571967395b7a8784e6a2dc36c5c0a63d9c6a9f32afe8779aa"
+    }
+  }
+}

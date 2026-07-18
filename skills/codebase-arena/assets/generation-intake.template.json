@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 2,
+  "workflow": "generate",
+  "locales": ["zh-CN", "en"],
+  "repository": {
+    "location": "",
+    "baseRevision": "",
+    "workspaceBoundaries": [],
+    "dirtyStatePolicy": { "zh-CN": "", "en": "" }
+  },
+  "evaluationDesign": {
+    "mode": "read-only-code-understanding",
+    "objective": { "zh-CN": "", "en": "" },
+    "evalsetSuccessCriteria": { "zh-CN": [], "en": [] },
+    "caseCount": { "exact": 15, "source": "fixed-policy" },
+    "coverageConstraints": { "zh-CN": [], "en": [] }
+  },
+  "tracks": [],
+  "round": {
+    "layoutVersion": 2,
+    "evaluationRoot": ".codebase-eval",
+    "roundId": "",
+    "roundRoot": "",
+    "evalsetDirectoryName": "evalset"
+  },
+  "deliverable": {
+    "stopAfter": "H1",
+    "packages": []
+  },
+  "sourceAuthorization": {
+    "gitHistory": "authorized-by-default-policy",
+    "issues": "authorized-by-default-policy",
+    "pullRequests": "authorized-by-default-policy",
+    "repositoryDocumentation": "authorized-by-default-policy",
+    "networkSources": "authorized-by-default-policy"
+  },
+  "staticReviewFeasibility": {
+    "answerEvidenceReview": "final-response-and-frozen-source-only",
+    "candidateProjectExecution": "forbidden",
+    "runtimeRequirements": [],
+    "serviceRequirements": [],
+    "credentialRequirements": [],
+    "perCaseCostCeilings": {
+      "tokens": null,
+      "durationMinutes": null,
+      "externalCost": 0
+    }
+  },
+  "governance": {
+    "exclusions": { "zh-CN": [], "en": [] },
+    "sensitivePaths": [],
+    "forbiddenOperations": [],
+    "constraints": { "zh-CN": [], "en": [] }
+  },
+  "unresolvedRisks": { "zh-CN": [], "en": [] },
+  "confirmation": {
+    "status": "confirmed",
+    "confirmedBy": "",
+    "confirmedAt": "",
+    "notes": { "zh-CN": "", "en": "" }
+  }
+}
