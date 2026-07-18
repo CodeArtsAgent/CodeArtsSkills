@@ -5,7 +5,7 @@
 A collection of custom skills for the Huawei Cloud CodeArts Agent coding assistant. Skills are consumed at runtime by the CodeArts plugin — there is no build, test, or lint pipeline at the repo level. Skills fall into two categories:
 
 - **Installer skill** — `skill-installer` is the single meta-installer that bootstraps third-party frameworks/MCP servers into a CodeArts project/user scope. It consolidates four targets behind one entry point: `superpowers`, `office-mcp`, `playwright-cli`, `openspec` (each an adapter module under `scripts/targets/`).
-- **Evaluation skills** — score and compare code-agent implementations (`codearena-cn`, `codearena-en`).
+- **Evaluation skills** — score and compare code-agent implementations (`code-arena-cn`, `code-arena-en`).
 
 Per-skill usage, commands, and installation instructions live in `README.md`. This file describes repo-level conventions and contributor process only.
 
@@ -43,8 +43,8 @@ CodeArtsSkills/
 ├── LICENSE                # MIT
 ├── skills/                # All skill sources (self-contained)
 │   ├── skill-installer/   # Single meta-installer (targets: superpowers, office-mcp, playwright-cli, openspec)
-│   ├── codearena-cn/
-│   └── codearena-en/
+│   ├── code-arena-cn/
+│   └── code-arena-en/
 └── .codeartsdoer/         # CodeArts runtime config (gitignored; do not restructure)
     ├── rule/metadata.properties
     ├── skills/ProjectSkillStatus.txt
@@ -57,7 +57,7 @@ CodeArtsSkills/
 ## 5. Development Workflow
 
 - **Branch per change** — create a feature branch, open a PR to merge.
-- **codearena-cn / codearena-en are localized mirrors** — they share file layout but differ in localized text (UI selectors, button regexes, all `references/*.md`, `SKILL.md`). Mirror *structural/mechanic* changes across both; never overwrite localized text.
+- **code-arena-cn / code-arena-en are localized mirrors** — they share file layout but differ in localized text (UI selectors, button regexes, all `references/*.md`, `SKILL.md`). Mirror *structural/mechanic* changes across both; never overwrite localized text.
 - **Manually test installer targets on all three platforms** (Windows, Linux, macOS) before merge.
 - **Update `README.md`** for any user-facing change (new skill, new target, new command, changed flags).
 - **Keep skills self-contained** — do not introduce imports between skills.
@@ -105,7 +105,7 @@ node skills/skill-installer/scripts/test/run.js --filter openspec
 
 For targets that expose a `status` command (e.g., `office-mcp`, `openspec`), verify `node installer.js status --target <name>` exits `0` after `init` and reports incomplete after `delete`.
 
-The `codearena` `scripts/templates/` are per-round harness skeletons generated at evaluation runtime — they are not standalone tests.
+The `code-arena` `scripts/templates/` are per-round harness skeletons generated at evaluation runtime — they are not standalone tests.
 
 ## 9. Build & Commands
 
@@ -141,7 +141,7 @@ A skill change is complete when:
 - [ ] SKILL.md frontmatter is valid (`name` + `description`).
 - [ ] `README.md` is updated for any user-facing change.
 - [ ] Each installer target in `README.md` lists its source GitHub URL and a brief install example (CLI command + natural language).
-- [ ] codearena-cn/en pair kept in structural parity (localized text preserved).
+- [ ] code-arena-cn/en pair kept in structural parity (localized text preserved).
 - [ ] Verified via the end-to-end install path (`npx skills add` → init/update/delete).
 
 ## 11. Safety Rules
@@ -156,7 +156,7 @@ A skill change is complete when:
 
 - **Add a new skill**: create `skills/<name>/` with `SKILL.md` (+ `scripts/`, `references/`, `assets/` as needed); add a section to `README.md`. To add a new installable target, add an adapter to `skills/skill-installer/scripts/targets/<name>.js`, register it in `targets/index.js`, and implement `init`/`update`/`delete`/`status`.
 - **Update a target**: edit the adapter at `skills/skill-installer/scripts/targets/<name>.js` (and shared `lib/`); test `init`/`update`/`delete`/`status --target <name>` on all platforms; keep manifest logic in sync.
-- **Update codearena**: make the structural change in both `codearena-cn` and `codearena-en`; keep localized text distinct.
+- **Update code-arena**: make the structural change in both `code-arena-cn` and `code-arena-en`; keep localized text distinct.
 - **Document a skill**: edit `README.md`, not `AGENTS.md` (AGENTS.md is repo conventions only).
 
 ## 13. Decision Principles
@@ -169,7 +169,7 @@ A skill change is complete when:
 
 ## 14. FAQ / Pitfalls
 
-- **"codearena-cn and codearena-en are identical"** — No. They share file layout but differ in 8 files (localized UI selectors, button regexes, `tools-README.md`, all `references/*.md`, `SKILL.md`). Mirror structural changes only, never localized text.
+- **"code-arena-cn and code-arena-en are identical"** — No. They share file layout but differ in 8 files (localized UI selectors, button regexes, `tools-README.md`, all `references/*.md`, `SKILL.md`). Mirror structural changes only, never localized text.
 - **`office-mcp` target is project-scope only** — `init --target office-mcp --user` is rejected by capability gating; there is no `--user` fallback.
 - **Shell scripts won't run on Windows** — `.sh` files need Git Bash or WSL. Prefer Node.js for cross-platform installer logic.
 - **`mcp_settings.json` contains absolute paths** — machine-specific; never copy between machines. The installer regenerates it.
