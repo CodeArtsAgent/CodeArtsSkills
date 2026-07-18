@@ -1,0 +1,39 @@
+{
+  "mcpServers": {
+    "atlassian-rovo-mcp": {
+      "url": "https://mcp.atlassian.com/v1/mcp",
+      "headers": {
+        "Authorization": "Basic <JIRA_MCP_AUTH_BASE64>"
+      }
+    },
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer <GITHUB_PAT>"
+      }
+    },
+    "sonarqube": {
+      "url": "https://api.sonarcloud.io/mcp",
+      "headers": {
+        "Authorization": "Bearer <SONAR_TOKEN>",
+        "SONARQUBE_ORG": "<SONAR_ORGANIZATION>"
+      }
+    },
+    "semgrep": {
+      "command": "<SEMGREP_EXECUTABLE_PATH>",
+      "args": ["mcp"],
+      "env": {
+        "SEMGREP_APP_TOKEN": "<SEMGREP_APP_TOKEN>",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "disabled": false,
+      "timeout": 120000
+    },
+    "jfrog": {
+      "url": "<JFROG_PLATFORM_URL>/mcp",
+      "headers": {
+        "Authorization": "Bearer <JFROG_ACCESS_TOKEN>"
+      }
+    }
+  }
+}
