@@ -108,8 +108,10 @@ automatically before any service onboarding - **no user action needed**.
 > - **Project level** — available only in this project (stored in `.codeartsdoer/skills/`) *(current default)*
 >
 > This determines where generated config files and skill references are stored.
+> All subsequent skill, config, and reference source/target paths are derived from
+> this selection (user-level: `~/.codeartsdoer/...`, project-level: `.codeartsdoer/...`).
 
-Ask the user via the `question` tool which option they want. **Keep the question and option descriptions short** - do NOT include long explanations of agent roles or internal pipeline details. The user only needs to understand the choice, not the implementation:
+Ask the user via the `question` tool which option they want. **Keep the question and option descriptions short** - do NOT include long explanations of agent roles or internal pipeline details. The user only needs to understand the choice, not the implementation. Store the selection for use in all subsequent path derivations.
 
 - **Question**: "Start with an existing GitHub repo or create a new one?"- **Option A**: "Existing repo" — description: "Use a repo you already have"
 - **Option B**: "New repo" — description: "Create a new repo from a prompt"
@@ -370,7 +372,7 @@ before writing `docker-compose.yml`:
      vanilla HTML/CSS/JS for frontend)
 
 2. **Invoke Backend Agent** to create repo, clone, build, create `dev` branch & push (PM Agent -> Task tool):
-   - Pass the backend scope, tech stack, project prompt, repo name, owner, visibility, AND GitHub PAT to the Backend Agent
+   - Pass the backend scope, tech stack, project prompt, repo name, owner, visibility to the Backend Agent (do NOT pass the GitHub PAT — the Backend Agent uses its preconfigured GitHub MCP capability for repository creation)
    - The Backend Agent creates the repo via GitHub MCP (this is the ONLY agent that creates repos):
      ```
      github_create_repository(
@@ -402,21 +404,30 @@ before writing `docker-compose.yml`:
      git push origin dev
      ```
 
-3. **Frontend Agent builds concurrently with Backend** (PM dispatches via Jira async):
-   - Pass the frontend scope, tech stack, and project prompt to the Frontend Agent
-   - The Frontend Agent generates:
+ 3. **Frontend Agent builds concurrently with Backend** (PM dispatches via Jira async):
+    - The Backend Agent has already created the repo, cloned it, and created the `dev` branch
+    - Pass the frontend scope, tech stack, project prompt, AND the repository URL to the Frontend Agent
+    - The Frontend Agent clones the repository from the URL provided by the Backend Agent
+    - The Frontend Agent works on an isolated feature branch (not directly on `dev`):
+      ```bash
+      git clone "https://github.com/<GITHUB_OWNER>/<NEW_REPO_NAME>.git"
+      cd <NEW_REPO_NAME>
+      git checkout -b feature/frontend/initial-build dev
+      ```
+    - The Frontend Agent generates:
      - Complete directory structure (`frontend/src/`, `frontend/public/`)
      - Actual implementation code for all UI features
      - Configuration files (`package.json`, frontend `Dockerfile`)
      - Component-level tests
-   - The Frontend Agent writes files into the cloned repo's `frontend/` directory
-   - The Frontend Agent commits frontend code and pushes to `dev`:
-     ```bash
-     cd <NEW_REPO_NAME>
-     git add frontend/
-     git commit -m "feat: initial frontend build from prompt"
-     git push origin dev
-     ```
+    - The Frontend Agent writes files into the cloned repo's `frontend/` directory
+    - The Frontend Agent commits frontend code and pushes to its feature branch:
+      ```bash
+      git add frontend/
+      git commit -m "feat: initial frontend build from prompt"
+      git push origin feature/frontend/initial-build
+      ```
+    - After Backend Agent completes, the Frontend Agent (or Backend Agent if both active)
+      creates a PR from `feature/frontend/initial-build` to `dev` and merges it
 
 4. **Invoke DevOps Agent** (after BOTH Backend + Frontend complete) to write `docker-compose.yml`, shared docs, generate `ci-cd.yml` & push to `dev` (PM Agent -> Task tool):
    - Pass the project structure, tech stack, container requirements, AND the
@@ -801,7 +812,7 @@ When asking for JFrog credentials, show the example values and tips below in the
 question descriptions to help the user provide correct values.
 
 1. **JFrog Platform URL** — Example: `https://demoartifacthw.jfrog.io/`
-   - **Tip:** Copy the full base URL from your browser address bar when logged into JFrog.
+   - **Tip:** Copy the full base URL from your browser address bar when logged into JFrog. The value **includes the scheme** (`https://`).
 2. **JFrog Docker Registry** — Example: `demoartifacthw.jfrog.io`
    - **Tip:** In Administration > Repositories, create a Local repository with Docker package type.
    - **WARNING:** No underscores in repository name (DNS limitation). Use hyphens (e.g., `docker-dev-local`).
@@ -872,15 +883,15 @@ for full instructions.
      ```
    - Verify key-based SSH login works:
 
-     **Windows (PowerShell):**
-     ```powershell
-     ssh -i $sshKey -o BatchMode=yes -o StrictHostKeyChecking=no <ECS_USER>@<ECS_HOST> "echo OK"
-     ```
+      **Windows (PowerShell):**
+      ```powershell
+      ssh -i $sshKey -o BatchMode=yes <ECS_USER>@<ECS_HOST> "echo OK"
+      ```
 
-     **macOS/Linux (Bash):**
-     ```bash
-     ssh -i "$sshKey" -o BatchMode=yes -o StrictHostKeyChecking=no <ECS_USER>@<ECS_HOST> "echo OK"
-     ```
+      **macOS/Linux (Bash):**
+      ```bash
+      ssh -i "$sshKey" -o BatchMode=yes <ECS_USER>@<ECS_HOST> "echo OK"
+      ```
 4. **Install Docker on ECS** (handled automatically via SSH):
 
    **Windows (PowerShell):**
@@ -1219,15 +1230,15 @@ Once all service info is confirmed and saved:
      repository root during CI/CD. Without it, the scan fails.
    - The DevOps Agent should commit this alongside `ci-cd.yml` and `docker-compose.yml`
      when pushing the initial codebase to the `dev` branch in Step 0.1.B.4.
-    - If not pushed during Step 0.1.B.4, delegate to the Backend Agent (or sole developer agent) - DIRECT PUSH to dev (no PR, path-based branch protection for .opencode/**):
-      ```
-      git checkout dev
-      git checkout -b docs/sonar-config
-      git add sonar-project.properties
-      git commit -m "chore: add sonar-project.properties for CI/CD SonarCloud scan"
-      git push origin docs/sonar-config
-      # Developer Agent DIRECT PUSH to dev (no PR - path-based branch protection)
-      ```
+     - If not pushed during Step 0.1.B.4, delegate to the Backend Agent (or sole developer agent) - create a docs branch + PR targeting `dev`:
+       ```
+       git checkout dev
+       git checkout -b docs/sonar-config
+       git add sonar-project.properties
+       git commit -m "chore: add sonar-project.properties for CI/CD SonarCloud scan"
+       git push origin docs/sonar-config
+       # Developer Agent creates PR and merges to dev
+       ```
 4. Generate `.env` from template (see `references/templates/env-template.env`)
    - **Local only** - contains secrets, do NOT commit to repo
 5. Run `set-secrets.js` to set GitHub Secrets and Variables automatically

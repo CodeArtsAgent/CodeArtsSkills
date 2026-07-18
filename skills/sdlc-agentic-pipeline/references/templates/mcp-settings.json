@@ -32,7 +32,7 @@
     "jfrog": {
       "url": "<JFROG_PLATFORM_URL>/mcp",
       "headers": {
-        "Authorization": "Bearer <JFROG_ACCESS_TOKEN>"
+        "Authorization": "Bearer <JFROG_PASSWORD>"
       }
     }
   }

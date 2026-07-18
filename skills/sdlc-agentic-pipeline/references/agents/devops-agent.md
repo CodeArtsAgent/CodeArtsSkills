@@ -110,9 +110,10 @@ PR operations delegated to developer agents:
 > the DevOps Agent handles this during Step 3 via a feature branch and PR.
 
 ### 0.1 Context
-- The PM Agent has created the GitHub repository (Step 0.1.B.3) and cloned it locally
+- The Backend Agent has created the GitHub repository and cloned it locally
 - The Backend Agent has already built and pushed backend code to `dev`
 - The Frontend Agent has already built and pushed frontend code to `dev`
+- The DevOps Agent clones the repository before infrastructure work
 - The PM Agent invokes the DevOps Agent via the Task tool with:
   - The project structure (backend + frontend directories)
   - The tech stack for each service (e.g., Python/FastAPI backend, vanilla HTML/CSS/JS frontend)
@@ -174,10 +175,11 @@ PR operations delegated to developer agents:
 - The DevOps Agent transitions the task to "In Progress"
 
 ### What to Do
-1. **Clone the repo locally** (the DevOps Agent owns this git operation):
+1. **Clone the repo locally** (the DevOps Agent owns this git operation — use credential helper, never embed PAT in URL):
    ```bash
-   git clone "https://<GITHUB_PAT>@github.com/<GITHUB_OWNER>/<GITHUB_REPO>.git"
+   git clone "https://github.com/<GITHUB_OWNER>/<GITHUB_REPO>.git"
    ```
+   The GitHub MCP Bearer token is used for authentication via the configured credential helper. Do NOT pass the PAT as a URL parameter — it would be exposed in command history, process arguments, and tool logs.
 2. **Create a feature branch** from the user's chosen integration branch:
    ```bash
    git checkout -b feature/devops/<short-description>
@@ -241,10 +243,10 @@ PR operations delegated to developer agents:
   ```
 - If workflow needs updates, edit via `github_create_or_update_file`
 
-### 6.4 GitHub Action Secrets Checklist (Required Before First Run)
+### 6.4 GitHub Action Secrets & Variables Checklist (Required Before First Run)
 
 Before triggering the CI/CD workflow for the first time, the DevOps Agent MUST
-ensure all required GitHub Action secrets are configured. The `ci-cd.yml` template
+ensure all required GitHub Action secrets and variables are configured. The `ci-cd.yml` template
 documents these in its header comment.
 
 Required secrets (add under **Settings -> Secrets and variables -> Actions -> New repository secret**):
@@ -252,20 +254,27 @@ Required secrets (add under **Settings -> Secrets and variables -> Actions -> Ne
 | Secret | Purpose |
 |--------|---------|
 | `SONAR_TOKEN` | SonarCloud authentication token |
-| `JFROG_PLATFORM_URL` | JFrog platform base URL (e.g. `https://<org>.jfrog.io`) |
-| `JFROG_DOCKER_REGISTRY` | JFrog Docker registry hostname |
-| `JFROG_USERNAME` | JFrog user account |
 | `JFROG_PASSWORD` | JFrog password / access token |
-| `JFROG_PROJECT` | JFrog project key |
 
 > `GITHUB_TOKEN` is auto-provided by GitHub Actions - do NOT ask the user to add it.
 
+Required variables (add under **Settings -> Secrets and variables -> Actions -> Variables tab**):
+
+| Variable | Purpose |
+|----------|---------|
+| `JFROG_PLATFORM_URL` | JFrog platform base URL including scheme (e.g. `https://<org>.jfrog.io`) |
+| `JFROG_DOCKER_REGISTRY` | JFrog Docker registry hostname (no scheme) |
+| `JFROG_USERNAME` | JFrog user account (email address) |
+| `JFROG_PROJECT` | JFrog project key |
+| `SONAR_PROJECT_KEY` | SonarCloud project key |
+
 Procedure:
 1. List existing secrets via GitHub API: `GET /repos/{owner}/{repo}/actions/secrets`.
-2. Compare against the 6 required secrets above.
-3. If ANY required secret is missing, use the `question` tool to ask the user to add
-   the missing secret(s) before proceeding. Do not continue until the user confirms.
-4. Only after all secrets are present, proceed to monitor the auto-triggered pipeline (6.2).
+2. List existing variables via GitHub API: `GET /repos/{owner}/{repo}/actions/variables`.
+3. Compare against the 2 required secrets and 5 required variables above.
+4. If ANY required secret or variable is missing, use the `question` tool to ask the user to add
+   the missing value(s) before proceeding. Do not continue until the user confirms.
+5. Only after all secrets and variables are present, proceed to monitor the auto-triggered pipeline (6.2).
 
 ### 6.5 Manual CI/CD Trigger
 - **Option A - GitHub API via REST** (recommended, works without `gh` CLI):
@@ -487,11 +496,14 @@ Procedure:
   $sshKey = "$env:USERPROFILE\.ssh\id_rsa"
   $ecsHost = "<HUAWEI_ECS_HOST>"
   $ecsUser = "<HUAWEI_ECS_USER>"
-  $image = "<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest"
-  $containerName = "sdlc-pipeline-guideline"
+   $image = "<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:<RELEASE_TAG>"
+   $containerName = "sdlc-pipeline-guideline"
 
-  # Pull latest image
-  ssh -i $sshKey $ecsUser@$ecsHost "docker pull $image"
+   # Capture currently running image for rollback
+   $previousImage = ssh -i $sshKey $ecsUser@$ecsHost "docker inspect --format='{{.Config.Image}}' $containerName 2>`$null"
+
+   # Pull release image
+   ssh -i $sshKey $ecsUser@$ecsHost "docker pull $image"
 
   # Stop and remove existing container (if any)
   ssh -i $sshKey $ecsUser@$ecsHost "docker stop $containerName 2>/dev/null; docker rm $containerName 2>/dev/null"
@@ -505,10 +517,13 @@ Procedure:
   sshKey="$HOME/.ssh/id_rsa"
   ecsHost="<HUAWEI_ECS_HOST>"
   ecsUser="<HUAWEI_ECS_USER>"
-  image="<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest"
+  image="<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:<RELEASE_TAG>"
   containerName="sdlc-pipeline-guideline"
 
-  # Pull latest image
+  # Capture currently running image for rollback
+  previousImage=$(ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker inspect --format='{{.Config.Image}}' $containerName 2>/dev/null" || echo "")
+
+  # Pull release image
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker pull $image"
 
   # Stop and remove existing container (if any)
@@ -540,10 +555,13 @@ Procedure:
   ```
 
 ### 9.3 Rollback on Failure
-- If deployment fails: rollback via `docker stop` + `docker run` previous image tag
+- If deployment fails: rollback using the captured previous image:
+  ```bash
+  ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker stop $containerName; docker rm $containerName; docker run -d --name $containerName -p 80:80 $previousImage"
+  ```
 - Report success or failure to PM Agent via Jira comment:
-  - Success: `@agent:pm Deployment to Huawei Cloud ECS complete - version <tag> live at http://<ECS_HOST>`
-  - Failure: `@agent:pm Deployment to Huawei Cloud ECS FAILED - rollback executed`
+  - Success: `@agent:pm Deployment to Huawei Cloud ECS complete - version <RELEASE_TAG> live at http://<ECS_HOST>`
+  - Failure: `@agent:pm Deployment to Huawei Cloud ECS FAILED - rollback executed to previous image`
 
 ---
 

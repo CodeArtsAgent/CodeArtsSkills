@@ -43,11 +43,11 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 > **Idempotency:** If the pipeline is re-run for the same sprint, the PM Agent must:
 > 1. Check if a sprint already exists and is active (skip Step 2 sprint creation)
 > 2. Check existing Jira tasks (skip Step 1 if tasks already created)
-> 3. Check PR status (skip Steps 3-5b if PRs already merged into `dev`)
+> 3. Check PR status (skip Steps 3-5 if PRs already merged into `dev`)
 > 4. Check CI/CD workflow runs (skip Step 6 if already passed)
-> 5. Check JFrog artifacts (skip Step 7 if already verified)
-> 6. Check if `dev` is already merged to `main` (skip Step 8 if already merged)
-> 7. Check if deployment is already live (skip Step 9 if health check passes)
+> 5. Check JFrog artifacts (skip Step 6 if already verified)
+> 6. Check if `dev` is already merged to `main` (skip Step 7 if already merged)
+> 7. Check if deployment is already live (skip Step 8 if health check passes)
 > 8. Always run Step 9 (sprint close + report) if not yet completed
 
 ### Step 1: PM Agent — Requirement Breakdown
@@ -87,7 +87,7 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 - **Error throwback**: If review flags issues, PM Agent revises requirements and re-requests review
 
 ### Step 2: PM Agent — Sprint Start & SDD Setup
-- **Owner**: PM Agent
+- **Owner**: PM Agent (sprint) + Developer Agent (SDD file writes)
 - **Tools**: Jira MCP, Bash (Jira Agile REST API), creating-sdd-directory skill, question tool
 - **Actions**:
   1. Find Jira board ID via REST API: `GET /rest/agile/1.0/board`
@@ -97,9 +97,12 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
   4. Add all issues to sprint via REST API: `POST /rest/agile/1.0/sprint/{id}/issue`
   5. Start sprint (set state to "active"): `PUT /rest/agile/1.0/sprint/{id}`
   6. Invoke `creating-sdd-directory` skill for each task to initialize spec-driven development
-  7. Populate spec.md, design.md, tasks.md from Jira requirements
+  7. **Delegate SDD file creation to a developer agent** (the PM Agent is read-only with the repo):
+     - The developer agent creates `spec.md`, `design.md`, `tasks.md` from Jira requirements
+     - The developer agent works on a docs branch (e.g., `docs/sdd-<feature>`), commits, pushes, and creates a PR to `dev`
+     - The developer agent merges the PR after user review
   8. Post SDD-complete comments on all Jira tasks
-- **Output**: Active sprint with all issues, SDD directories created
+- **Output**: Active sprint with all issues, SDD directories created and merged to `dev`
 
 ### Step 3: Frontend/Backend Agent — Development, Semgrep Pre-Scan & Fix
 - **Owner**: Frontend Agent, Backend Agent
@@ -180,8 +183,8 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 - **Includes**: build (Stage 1), sonar-scan (Stage 2), sonar-qg-check (Stage 3), deploy-to-jfrog (Stage 4), verify-jfrog (Stage 5). Uses sonarcloud-github-action@master (NOT sonarqube-scan-action)
 - **Actions**:
   1. **Transition Jira task to "In Progress"** (CI/CD phase - task moves from "In Testing" back to "In Progress" to indicate active pipeline work)
-  2. Verify/update GitHub Actions workflow (SonarCloud scan → build → JFrog upload on manual dispatch)
-  3. **Monitor auto-triggered CI/CD (auto-triggers on dev push)** and **monitor workflow runs** — see `references/agents/devops-agent.md` §6.5–6.6 for detailed PowerShell and Bash commands
+   2. Verify/update GitHub Actions workflow (SonarCloud scan → build → JFrog upload; auto-triggered on push to `dev`)
+   3. **Monitor auto-triggered CI/CD** (auto-triggers on dev push) and **monitor workflow runs** — see `references/agents/devops-agent.md` §6.5–6.6 for detailed PowerShell and Bash commands
   4. If CI fails → identify failing job+step:
      - **Build/test error** (Stage 2 fails): transition Jira BACK to "In Progress", comment `@agent:frontend` or `@agent:backend Build/test failed at <step>: <error>`
      - **Pipeline config error** (Stage 1/3 fails, workflow YAML issue): DevOps self-fixes, re-trigger pipeline
@@ -194,7 +197,7 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 - **NOTE**: Upload is handled by GitHub Actions pipeline. Agent only VERIFIES.
   If JFrog MCP is unavailable, use the JFrog Artifactory REST API as a fallback.
 - **Authentication**: Bearer token in `Authorization` header
-- **REST API Endpoints** (base URL: `https://<JFROG_PLATFORM_URL>/artifactory/api/`):
+- **REST API Endpoints** (base URL: `<JFROG_PLATFORM_URL>/artifactory/api/` — the URL already includes the scheme):
   1. **List repositories**: `GET /artifactory/api/repositories` — verify repo exists
   2. **List artifacts in repo**: `GET /artifactory/api/storage/<repo-key>` — find Docker image
   3. **List image tags**: `GET /artifactory/api/storage/<repo-key>/<image-name>` — verify tags (latest + commit SHA)
@@ -265,14 +268,25 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
        - Option 1: "Wait" -> pause Step 9 until all tasks are Done
        - Option 2: "Move to next sprint" -> move incomplete tasks to the next sprint (remove from current sprint via `customfield_10020` update), then proceed with closing
        - Option 3: "Close as Won't Do" -> mark incomplete tasks as "Won't Do" and proceed with closing
-  2. Close sprint via REST API: `PUT /rest/agile/1.0/sprint/{id}`
-     - **WARNING:** The Jira Agile REST API does NOT support partial updates.
-       You must send the FULL sprint object, not just the changed field.
-       - ❌ Wrong: `{ "state": "closed" }` → 400 Bad Request
-       - ✅ Right: `{ "state": "closed", "name": "...", "startDate": "...", "endDate": "...", "goal": "..." }`
-     - **Solution:** First `GET /rest/agile/1.0/sprint/{id}` to fetch existing `name` and `startDate`,
-       then `PUT` with the complete body including all required fields.
-     - Required fields: `state`, `name`, `startDate`, `endDate` (set to current time)
+   2. Close sprint via REST API: `PUT /rest/agile/1.0/sprint/{id}`
+      - **WARNING:** The Jira Agile REST API does NOT support partial updates.
+        You must send the FULL sprint object, not just the changed field.
+        - ❌ Wrong: `{ "state": "closed" }` → 400 Bad Request
+        - ✅ Right: `{ "state": "closed", "name": "...", "startDate": "...", "endDate": "...", "goal": "..." }`
+      - **Solution:** First `GET /rest/agile/1.0/sprint/{id}` to fetch existing `name` and `startDate`,
+        then `PUT` with the complete body including all required fields.
+      - Required fields: `state`, `name`, `startDate`, `endDate` (set to current time)
+      - **CRITICAL — Auth & URL:** Direct site URL (`{site}.atlassian.net`) always returns 401.
+        Must use the Atlassian API gateway (`https://api.atlassian.com/ex/jira/{cloudUuid}/rest/agile/1.0`)
+        with the `Authorization` header from `.codeartsdoer/mcp/mcp_settings.json`
+        (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). Any other auth token will fail.
+      - **Windows:** The CodeArts Bash tool strips `$` from inline PowerShell. Always write a `.ps1`
+        script file first, then execute with `powershell -NoProfile -ExecutionPolicy Bypass -File "path/to/script.ps1"`.
+        Delete the script file after execution.
+      - **Cross-platform templates** are available at `references/templates/sprint-scripts/`:
+        - `sprint-close.ps1` / `sprint-close.sh` — close an active sprint
+        - `sprint-start.ps1` / `sprint-start.sh` — start a future sprint
+        - Copy the appropriate script, replace `<PLACEHOLDER>` values, execute, then delete.
   3. Generate sprint summary (completed vs. incomplete, velocity metrics)
   4. Post retrospective comment on the Epic
   5. Archive SDD documents
@@ -296,11 +310,10 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
           - Step 8: Deployment details (Docker pull, container start, health check HTTP code, deployment URL)
           - Sprint velocity chart (CSS-based bar chart)
         - Retrospective section: what went well, what didn't, action items
-  7. **Push report to GitHub**
-     - Delegate to Developer Agent (Backend if both active, otherwise sole developer) - DIRECT PUSH to `dev` (no PR)
-     - Commit `reports/sdlc-report.html` and push directly to `dev`
-     - Create PR targeting `dev` (lightweight merge - docs only, no review gates)
-     - `reports/**` exempt from PR via path-based branch protection
+   7. **Push report to GitHub**
+      - Delegate to Developer Agent (Backend if both active, otherwise sole developer)
+      - Create a docs branch (e.g., `docs/sdlc-reports`), commit `reports/sdlc-report.html`, push branch
+      - Create PR targeting `dev` and merge it (GitHub branch protection applies to the whole branch, so a PR is required)
   8. **Present report to user**
      - Show file path to `reports/sdlc-report.html`
      - Show GitHub PR link where report was pushed
@@ -336,7 +349,7 @@ See `references/agents/devops-agent.md` §6.5–6.6 for auth setup, trigger, and
 > Must be manually added: Settings -> Work items -> Workflows -> Edit -> Add status
 > -> Create 'In Testing' (category: In Progress) -> Enable 'Allow all statuses to
 > transition to this one'. See 
-eferences/setup/service-onboarding.md for details.
+references/setup/service-onboarding.md for details.
 
 ## Agent Routing Labels, Domain Labels, Jira Comment Format, Jira Task Discovery JQL, Branch Naming Convention, PR Merge Gate
 

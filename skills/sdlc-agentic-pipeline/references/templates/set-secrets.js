@@ -37,6 +37,7 @@ const CONFIG = {
     JFROG_DOCKER_REGISTRY: '<JFROG_DOCKER_REGISTRY>',
     JFROG_USERNAME: '<JFROG_USERNAME>',
     JFROG_PROJECT: '<JFROG_PROJECT>',
+    SONAR_PROJECT_KEY: '<SONAR_PROJECT_KEY>',
   },
 };
 
@@ -127,15 +128,20 @@ async function main() {
   console.log(`\nSetting GitHub Actions secrets and variables for ${GITHUB_OWNER}/${GITHUB_REPO}\n`);
 
   console.log('Variables (plain text):');
+  let failed = false;
   for (const [name, value] of Object.entries(VARIABLES)) {
-    await setVariable(GITHUB_OWNER, GITHUB_REPO, GITHUB_PAT, name, value);
+    failed ||= !(await setVariable(GITHUB_OWNER, GITHUB_REPO, GITHUB_PAT, name, value));
   }
 
   console.log('\nSecrets (encrypted):');
   for (const [name, value] of Object.entries(SECRETS)) {
-    await setSecret(GITHUB_OWNER, GITHUB_REPO, GITHUB_PAT, name, value);
+    failed ||= !(await setSecret(GITHUB_OWNER, GITHUB_REPO, GITHUB_PAT, name, value));
   }
 
+  if (failed) {
+    console.error('\nERROR: One or more secrets or variables failed to update.');
+    process.exit(1);
+  }
   console.log('\nDone. Verify at: https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/settings/secrets/actions');
 }
 

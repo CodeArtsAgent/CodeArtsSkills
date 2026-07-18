@@ -6,11 +6,21 @@ ECS_HOST = "<ECS_HOST>"
 ECS_USER = "<ECS_USER>"
 ECS_PASSWORD = "<ECS_PASSWORD>"
 
+KNOWN_HOSTS_PATH = os.path.expanduser("~/.ssh/known_hosts")
+
 def add_ssh_key():
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    if os.path.exists(KNOWN_HOSTS_PATH):
+        ssh.load_host_keys(KNOWN_HOSTS_PATH)
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
     print(f"Connecting to {ECS_USER}@{ECS_HOST}...")
-    ssh.connect(ECS_HOST, username=ECS_USER, password=ECS_PASSWORD, timeout=15)
+    try:
+        ssh.connect(ECS_HOST, username=ECS_USER, password=ECS_PASSWORD, timeout=15)
+    except paramiko.SSHException as e:
+        print(f"ERROR: Host key verification failed for {ECS_HOST}.")
+        print(f"Verify the ECS host fingerprint first: ssh-keyscan {ECS_HOST} >> {KNOWN_HOSTS_PATH}")
+        print(f"Then re-run this script.")
+        sys.exit(1)
 
     pub_key_path = os.path.expanduser("~/.ssh/id_rsa.pub")
     if not os.path.exists(pub_key_path):
@@ -33,6 +43,8 @@ def add_ssh_key():
         print("ERROR: Failed to add SSH key.")
         if err:
             print("STDERR:", err)
+        ssh.close()
+        sys.exit(1)
 
     ssh.close()
 
@@ -41,7 +53,7 @@ def add_ssh_key():
     import subprocess
     ssh_key = os.path.expanduser("~/.ssh/id_rsa")
     verify = subprocess.run(
-        ["ssh", "-i", ssh_key, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no",
+        ["ssh", "-i", ssh_key, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new",
          "-o", "ConnectTimeout=10", f"{ECS_USER}@{ECS_HOST}", "echo VERIFIED"],
         capture_output=True, text=True, timeout=15
     )

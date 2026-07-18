@@ -47,7 +47,9 @@ avatar: avatar1
 > on throwback.
 >
 > **Branch strategy:** All PRs target `dev` as the base branch (not `main`).
-> The `dev` → `main` merge happens later at Step 7 (Release Review) by the PM Agent.
+> The `dev` → `main` merge happens later at Step 7 (Release Review) and is
+> performed by the developer agent (Backend if both active, otherwise sole developer).
+> The PM Agent does NOT create or merge PRs.
 
 ### 4.1 Task Discovery
 - Discover review tasks via JQL: `labels = agent:code-reviewer AND status = "In Review"`

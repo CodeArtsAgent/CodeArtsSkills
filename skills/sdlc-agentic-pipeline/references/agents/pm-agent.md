@@ -91,7 +91,7 @@ that can authorize deployment and close sprints.
 During Step 0 onboarding with an existing repo, the PM Agent additionally:
 - Inventories existing artifacts (Dockerfiles, docker-compose.yml, ci-cd.yml, etc.)
 - Asks the user about their development intent (new features, bug fixes, etc.)
-- Asks the user about their preferred branch strategy
+- Asks the user about their preferred branch strategy and **persists the selected integration/release branch** — this branch is passed to every downstream agent (Backend, Frontend, DevOps) and used for CI/CD triggers, feature merges, and release PRs instead of hard-coding `dev`
 - Existing artifacts are NEVER modified without explicit user approval
 - Branches are NEVER created/deleted/renamed without explicit user approval
 
@@ -222,8 +222,10 @@ $baseUrl = "https://api.atlassian.com/ex/jira/${cloudUuid}/rest/agile/1.0"
 
 **macOS/Linux (Bash):**
 ```bash
-# Step 1: Read .env for project context
-set -a; source "<PROJECT_ROOT>/.env"; set +a
+# Step 1: Read .env for project context (safe parsing — never source/eval .env)
+while IFS='=' read -r key value; do
+  case "$key" in JIRA_*) export "$key=$value" ;; esac
+done < "<PROJECT_ROOT>/.env"
 
 # Step 2: Read MCP auth header from mcp_settings.json
 authHeader=$(jq -r '.mcpServers["atlassian-rovo-mcp"].headers.Authorization' "<PROJECT_ROOT>/.codeartsdoer/mcp/mcp_settings.json")
@@ -285,27 +287,19 @@ atlassian-rovo-mcp_editJiraIssue(cloudId, issueIdOrKey, fields: { "customfield_1
 
 **Step 2.2.5 - Start Sprint (full PUT):**
 
-**Windows (PowerShell):**
-```powershell
-$startDate = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-$endDate = (Get-Date).AddDays(14).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-$body = @{ state = "active"; name = "<Sprint Name>"; startDate = $startDate; endDate = $endDate; goal = "<Sprint Goal>" } | ConvertTo-Json
-$uri = "${baseUrl}/sprint/${sprintId}"; $response = Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body
-# Verify $response.state == "active"
-# Note: Sprint must be in "future" state before it can be started
-```
+> **Windows:** The CodeArts Bash tool strips `$` from inline PowerShell commands.
+> Use the cross-platform template scripts from `references/templates/sprint-scripts/`:
+> - Copy `sprint-start.ps1` (or `sprint-start.sh` on macOS/Linux) to the project root
+> - Replace all `<PLACEHOLDER>` values with actual values
+> - Execute: `powershell -NoProfile -ExecutionPolicy Bypass -File "sprint-start.ps1"`
+> - **Delete the script file after execution** (it contains auth tokens)
 
-**macOS/Linux (Bash):**
-```bash
-startDate=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-# macOS uses -v+14d, Linux uses -d "+14 days"
-endDate=$(date -u -v+14d +"%Y-%m-%dT%H:%M:%S.000Z" 2>/dev/null || date -u -d "+14 days" +"%Y-%m-%dT%H:%M:%S.000Z")
-body=$(jq -n --arg state "active" --arg name "<Sprint Name>" --arg startDate "$startDate" --arg endDate "$endDate" --arg goal "<Sprint Goal>" \
-  '{state: $state, name: $name, startDate: $startDate, endDate: $endDate, goal: $goal}')
-response=$(curl -s -X PUT -H "Authorization: $authHeader" -H "Content-Type: application/json" -d "$body" "${baseUrl}/sprint/${sprintId}")
-# Verify: echo "$response" | jq -r '.state'
-# Note: Sprint must be in "future" state before it can be started
-```
+Template scripts are available at `references/templates/sprint-scripts/`:
+
+| Script | Platform | Usage |
+|--------|----------|-------|
+| `sprint-start.ps1` | Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File "sprint-start.ps1"` |
+| `sprint-start.sh` | macOS/Linux | `chmod +x sprint-start.sh && ./sprint-start.sh` |
 
 **Step 2.2.6 - Partially Update Sprint (POST):**
 
@@ -330,32 +324,24 @@ response=$(curl -s -X POST -H "Authorization: $authHeader" -H "Content-Type: app
 > You must first `GET /sprint/{id}` to fetch existing `name` and `startDate`,
 > then `PUT` with the complete body including all required fields.
 
-**Windows (PowerShell):**
-```powershell
-# Step 1: GET sprint to fetch existing fields
-$uri = "${baseUrl}/sprint/${sprintId}"; $sprint = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+> **CRITICAL — Auth & URL:** Direct site URL (`{site}.atlassian.net`) always returns 401.
+> You MUST use the Atlassian API gateway URL (`https://api.atlassian.com/ex/jira/{cloudUuid}/rest/agile/1.0`)
+> with the `Authorization` header from `.codeartsdoer/mcp/mcp_settings.json`
+> (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). Any other auth token will fail.
 
-# Step 2: PUT with complete body (state + name + startDate + endDate)
-$endDate = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-$body = @{ state = "closed"; name = $sprint.name; startDate = $sprint.startDate; endDate = $endDate; goal = $sprint.goal } | ConvertTo-Json
-$response = Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body
-# Sprint must be in "active" state before it can be closed
-# Verify $response.state == "closed"
-```
+> **Windows:** The CodeArts Bash tool strips `$` from inline PowerShell commands.
+> Use the cross-platform template scripts from `references/templates/sprint-scripts/`:
+> - Copy `sprint-close.ps1` (or `sprint-close.sh` on macOS/Linux) to the project root
+> - Replace all `<PLACEHOLDER>` values with actual values
+> - Execute: `powershell -NoProfile -ExecutionPolicy Bypass -File "sprint-close.ps1"`
+> - **Delete the script file after execution** (it contains auth tokens)
 
-**macOS/Linux (Bash):**
-```bash
-# Step 1: GET sprint to fetch existing fields
-sprint=$(curl -s -H "Authorization: $authHeader" "${baseUrl}/sprint/${sprintId}")
+Template scripts are available at `references/templates/sprint-scripts/`:
 
-# Step 2: PUT with complete body (state + name + startDate + endDate)
-endDate=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-body=$(echo "$sprint" | jq --arg state "closed" --arg endDate "$endDate" \
-  '{state: $state, name: .name, startDate: .startDate, endDate: $endDate, goal: .goal}')
-response=$(curl -s -X PUT -H "Authorization: $authHeader" -H "Content-Type: application/json" -d "$body" "${baseUrl}/sprint/${sprintId}")
-# Sprint must be in "active" state before it can be closed
-# Verify: echo "$response" | jq -r '.state'
-```
+| Script | Platform | Usage |
+|--------|----------|-------|
+| `sprint-close.ps1` | Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File "sprint-close.ps1"` |
+| `sprint-close.sh` | macOS/Linux | `chmod +x sprint-close.sh && ./sprint-close.sh` |
 
 ### 2.3 SDD Setup
 - After sprint is active, proceed with Spec-Driven Development setup
@@ -386,7 +372,8 @@ Full Jira Software Agile REST API endpoint reference (base: `/rest/agile/1.0`):
 **Sprint States:** `future` -> `active` -> `closed`
 
 **Common Pitfalls:**
-- **Auth:** Direct site URL with Basic auth returns **401**. Must use **Atlassian API gateway** with MCP auth header. Discover cloud UUID via `getVisibleJiraProjects`.
+- **Auth:** Direct site URL (`{site}.atlassian.net`) with Basic auth returns **401**. Must use **Atlassian API gateway** (`https://api.atlassian.com/ex/jira/{cloudUuid}/rest/agile/1.0`) with the `Authorization` header from `.codeartsdoer/mcp/mcp_settings.json` (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). Any other auth token will fail.
+- **Windows inline PowerShell:** The CodeArts Bash tool strips `$` from inline PowerShell commands. **Always write a `.ps1` script file first, then execute with `powershell -NoProfile -ExecutionPolicy Bypass -File "path/to/script.ps1"`**.
 - **Sprint name:** Must be **shorter than 30 characters** or API returns 400
 - **Adding issues to sprint:** Use `atlassian-rovo-mcp_editJiraIssue` with `customfield_10020: <sprint_id>` (number, not array)
 - **Starting sprint:** PUT body must include `state`, `name`, `startDate`, and `endDate`. Sprint must be in `future` state
@@ -443,6 +430,7 @@ Before approving release, verify ALL of the following:
 
 ### 7.4 Release Tagging
 - Create GitHub release tag via `github_create_or_update_file` or bash `git tag`
+- Record the approved immutable image digest or SHA tag for deployment handoff
 - Update Jira fixVersions field on all released tasks
 
 ---
@@ -488,36 +476,24 @@ Before approving release, verify ALL of the following:
 > **WARNING:** `PUT /sprint/{id}` does NOT support partial updates.
 > Must GET sprint first to fetch existing fields, then PUT with complete body.
 
-**Windows (PowerShell):**
-```powershell
-# Reuse $headers, $baseUrl, $sprintId from Section 2.2 auth setup
-# Sprint must be in "active" state to close
+> **CRITICAL — Auth & URL:** Direct site URL (`{site}.atlassian.net`) always returns 401.
+> You MUST use the Atlassian API gateway URL (`https://api.atlassian.com/ex/jira/{cloudUuid}/rest/agile/1.0`)
+> with the `Authorization` header from `.codeartsdoer/mcp/mcp_settings.json`
+> (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). Any other auth token will fail.
 
-# Step 1: GET sprint to fetch existing fields
-$uri = "${baseUrl}/sprint/${sprintId}"; $sprint = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+> **Windows:** The CodeArts Bash tool strips `$` from inline PowerShell commands.
+> Use the cross-platform template scripts from `references/templates/sprint-scripts/`:
+> - Copy `sprint-close.ps1` (or `sprint-close.sh` on macOS/Linux) to the project root
+> - Replace all `<PLACEHOLDER>` values with actual values
+> - Execute: `powershell -NoProfile -ExecutionPolicy Bypass -File "sprint-close.ps1"`
+> - **Delete the script file after execution** (it contains auth tokens)
 
-# Step 2: PUT with complete body (all required fields)
-$endDate = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-$body = @{ state = "closed"; name = $sprint.name; startDate = $sprint.startDate; endDate = $endDate; goal = $sprint.goal } | ConvertTo-Json
-$response = Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body
-# Verify $response.state == "closed"
-```
+Template scripts are available at `references/templates/sprint-scripts/`:
 
-**macOS/Linux (Bash):**
-```bash
-# Reuse $authHeader, $baseUrl, $sprintId from Section 2.2 auth setup
-# Sprint must be in "active" state to close
-
-# Step 1: GET sprint to fetch existing fields
-sprint=$(curl -s -H "Authorization: $authHeader" "${baseUrl}/sprint/${sprintId}")
-
-# Step 2: PUT with complete body (all required fields)
-endDate=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-body=$(echo "$sprint" | jq --arg state "closed" --arg endDate "$endDate" \
-  '{state: $state, name: .name, startDate: .startDate, endDate: $endDate, goal: .goal}')
-response=$(curl -s -X PUT -H "Authorization: $authHeader" -H "Content-Type: application/json" -d "$body" "${baseUrl}/sprint/${sprintId}")
-# Verify: echo "$response" | jq -r '.state'
-```
+| Script | Platform | Usage |
+|--------|----------|-------|
+| `sprint-close.ps1` | Windows | `powershell -NoProfile -ExecutionPolicy Bypass -File "sprint-close.ps1"` |
+| `sprint-close.sh` | macOS/Linux | `chmod +x sprint-close.sh && ./sprint-close.sh` |
 
 ### 9.3 Sprint Summary & Metrics
 - Get all issues in the closed sprint to compute velocity:

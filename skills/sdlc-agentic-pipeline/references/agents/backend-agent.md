@@ -118,10 +118,11 @@ When the Backend Agent is the primary PR operator, it handles:
   ```
   - If the MCP returns a **422** or "already exists" error, report back to the
     PM Agent who will ask the user for a different name and retry.
-- **Clone the newly created repo** to the local working directory:
+- **Clone the newly created repo** to the local working directory (use credential helper — never embed PAT in URL):
   ```bash
-  git clone "https://<GITHUB_PAT>@github.com/<GITHUB_OWNER>/<NEW_REPO_NAME>.git"
+  git clone "https://github.com/<GITHUB_OWNER>/<NEW_REPO_NAME>.git"
   ```
+  The GitHub MCP Bearer token is used for authentication via the configured credential helper. Do NOT pass the PAT as a URL parameter — it would be exposed in command history, process arguments, and tool logs.
 - Analyze the backend requirements to identify modules, API endpoints, and data models
 - Create the complete backend directory structure:
   - `backend/app/` - main application code
@@ -369,16 +370,11 @@ Before merging any feature PR, verify ALL of the following:
 
 ### 7.3 Merge Conflict Resolution (Simplified)
 
-If the `dev` -> `main` merge encounters conflicts (simplified - default `prefer dev`):
+If the `dev` -> `main` merge encounters conflicts:
 
 1. **Create resolution branch**: `git checkout -b fix/backend/resolve-release-conflict dev`
 2. **Merge main into resolution branch**: `git merge main` (conflicts appear)
-3. **Accept dev version for ALL conflicts** (dev has latest tested code)
-4. **Commit and push resolution**
-5. **Run CI/CD on resolution branch** (delegate to DevOps Agent for trigger)
-6. **If CI/CD passes** -> create PR to `main` and merge (DONE - 4 steps, not 18)
-7. **If CI/CD fails** -> THEN do full domain-owner conflict resolution:
-   - Classify conflicting files by ownership:
+3. **Resolve each conflict by domain ownership** (do NOT blanket-accept dev for all files — main may contain production hotfixes not in dev):
    - `backend/**` -> Backend Agent resolves
    - `frontend/**` -> Delegate to Frontend Agent via Jira comment
    - `docker-compose.yml`, `**/Dockerfile`, `.github/workflows/**` -> Delegate to DevOps Agent via Jira comment
@@ -416,18 +412,18 @@ If the `dev` -> `main` merge encounters conflicts (simplified - default `prefer 
    git commit -m "docs: add SDLC process report"
    git push origin docs/sdlc-reports
    ```
-4. DIRECT PUSH to `dev` (no PR - `reports/**` exempt via path-based branch protection):
-   ```
-   github_create_pull_request(
-     owner="<GITHUB_OWNER>",
-     repo="<GITHUB_REPO>",
-     title="docs: SDLC process report",
-     head="docs/sdlc-reports",
-     base="dev"
-   )
-   ```
-5. Report commit URL to PM Agent
-6. Report PR link to PM Agent: `@agent:pm Report PR created and merged: <PR_URL>`
+ 4. Create PR to `dev` and merge it:
+    ```
+    github_create_pull_request(
+      owner="<GITHUB_OWNER>",
+      repo="<GITHUB_REPO>",
+      title="docs: SDLC process report",
+      head="docs/sdlc-reports",
+      base="dev"
+    )
+    ```
+ 5. After PR is created, merge it via `github_merge_pull_request`
+ 6. Report commit URL and merged PR link to PM Agent: `@agent:pm Report published and merged: <PR_URL>`
 
 ---
 

@@ -154,14 +154,14 @@ See `references/templates/mcp-settings.json` for the template.
 |   0    PM + Frontend/Backend/DevOps  Onboarding: auto-provision agents, Opt A (existing repo, PM read-only) or Opt B (new repo, parallel Backend+Frontend build, DevOps configs) |
 |   1    PM                  Requirement breakdown, PRD, batch Jira task creation (hyperlinks to user) |
 |  1b    Frontend/Backend    Requirement review (PARALLEL via Jira async dispatch) |
-|   2    PM                  Sprint start (Jira Agile API) + SDD setup (direct push, no PR) |
+|   2    PM + Developer         Sprint start (Jira Agile API) + SDD setup (developer agent: docs branch + PR to dev) |
 |   3    Frontend/Backend    Code dev (PARALLEL via Jira async), Semgrep pre-scan, branching, PR, tests |
 |   4    Code Reviewer       PR review (batch), secret scanning (batch), GitHub approval |
 |   5    Tester + PM + Dev   E2E testing + auto-merge feature PRs (5b merged into 5) + CI/CD auto-triggers |
 |   6    DevOps              CI/CD (auto-triggered, cached) + JFrog verify + SonarCloud QG (combined) |
 |   7    PM+Developer        Release review (PM: sign-offs+approval) + merge (Developer: PR create+merge, simplified conflict resolution) |
 |   8    PM+DevOps            Deploy auth (PM: human approval) + execution (DevOps: SSH+docker pull+run) |
-|   9    PM+Developer        Sprint close, retro, HTML report, direct push to GitHub (no PR) |
+|   9    PM+Developer        Sprint close, retro, HTML report, docs branch + PR to GitHub |
 +---------------------------------------------------------------------------+
 ```
 
@@ -171,7 +171,8 @@ See `references/templates/mcp-settings.json` for the template.
    (Steps 0, 1b, 3). PM dispatches via Jira comments, both agents pick up independently.
 2. **Batch Jira operations**: Bulk create API for tasks (Step 1), batch transitions.
 3. **Direct push for docs/reports**: `.opencode/**`, `docs/**`, `reports/**` paths
-   exempt from PR requirement via GitHub path-based branch protection (Steps 2, 9).
+   use a docs branch + PR targeting `dev` (GitHub branch protection applies to the whole
+   branch, not individual paths, so a PR is required even for documentation changes).
 4. **Auto-trigger CI/CD**: `on: push` to `dev` branch. No manual DevOps trigger (Step 5->6).
 5. **Cached builds**: pip, node_modules, Docker layers cached in GitHub Actions (Step 6).
 6. **Combined CI/CD + verification**: JFrog artifact check + SonarCloud QG
@@ -361,7 +362,7 @@ summarizing the entire process, operations, and actions taken during the flow.
   - GitHub: `https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}`
   - PRs: `https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/pull/{PR_NUMBER}`
   - SonarCloud: `https://sonarcloud.io/project/overview?id={SONAR_PROJECT_KEY}`
-  - JFrog: `https://{JFROG_PLATFORM_URL}/ui/repos/tree/General/{JFROG_REPO_KEY}`
+   - JFrog: `{JFROG_PLATFORM_URL}/ui/repos/tree/General/{JFROG_REPO_KEY}`
   - GitHub Actions: `https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/actions`
 - Contents (single-page scrollable report):
   - Header: project name (linked to GitHub repo), sprint name, date range, overall status badge
@@ -483,7 +484,7 @@ main  (production-ready - only released code, deploy from here)
        └── docs/sdd-<feature_name>
 ```
 
-- **`main`**: Production branch. Only updated via `dev` → `main` merge at release time (Step 8).
+- **`main`**: Production branch. Only updated via `dev` → `main` merge at release time (Step 7).
   Branch protection rules MUST be enabled (no direct pushes).
 - **`dev`**: Integration branch. All feature, fix, and docs PRs target `dev` as base.
   Multiple feature branches merge here for integration testing before release.
@@ -491,16 +492,17 @@ main  (production-ready - only released code, deploy from here)
 
 > **Option A (Existing Repo):** The user's existing branch strategy takes precedence.
 > During onboarding (Step 0.A.6), the PM Agent asks the user which branch strategy to
-> use (existing `develop`, GitFlow `dev`, trunk-based, or custom). Branches are only
-> created by developer agents, never by the PM Agent. The pipeline adapts to the
-> user's chosen strategy for all PR targets.
+> use (existing `develop`, GitFlow `dev`, trunk-based, or custom). The selected branch
+> is persisted and passed to all downstream agents (Backend, Frontend, DevOps) for
+> CI/CD triggers, feature merges, and release PRs. Branches are only created by
+> developer agents, never by the PM Agent.
 
 ### Release Merge: `dev` → `main`
 
 At Step 7 (Release Review), after all feature PRs are merged into `dev` and all
 gates pass, the PM Agent authorizes and the developer agent (Backend if both active,
 otherwise sole developer) creates and merges `dev` into `main` via GitHub MCP.
-This is the only way code reaches `main`. Deployment (Step 9) always pulls from `main`.
+This is the only way code reaches `main`. Deployment (Step 8) always pulls from `main`.
 
 ## Branch Naming Convention
 
@@ -594,9 +596,14 @@ The pipeline requires explicit human approval at these points:
 >    crashes. Requires Project Administrator permissions.
 > 2. **Jira direct REST API 401**: Direct calls to `{site}.atlassian.net` with
 >    Basic auth return 401. Must use the Atlassian API gateway
->    (`api.atlassian.com/ex/jira/{cloudUuid}/rest/...`). Discover the cloud UUID
->    by calling `atlassian-rovo-mcp_getVisibleJiraProjects` and extracting it
->    from the `self` URL in the response.
+>    (`api.atlassian.com/ex/jira/{cloudUuid}/rest/...`) with the `Authorization`
+>    header from `.codeartsdoer/mcp/mcp_settings.json`
+>    (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). Any other auth
+>    token will fail. Discover the cloud UUID by calling
+>    `atlassian-rovo-mcp_getVisibleJiraProjects` and extracting it from the `self`
+>    URL in the response. On Windows, the CodeArts Bash tool strips `$` from
+>    inline PowerShell — always write a `.ps1` script file first, then execute
+>    with `powershell -NoProfile -ExecutionPolicy Bypass -File`.
 > 3. **Jira sprint name length**: Must be shorter than 30 characters or the API
 >    returns 400.
 > 4. **Sprint field value type**: `customfield_10020` (Sprint) must be a number,
@@ -607,6 +614,13 @@ The pipeline requires explicit human approval at these points:
 >    NOT support partial updates. Sending only `{"state": "closed"}` returns 400.
 >    Must `GET /sprint/{id}` first to fetch existing `name` and `startDate`, then
 >    `PUT` with complete body: `{state, name, startDate, endDate, goal}`.
+> 6b. **Sprint close must use gateway URL + MCP auth**: Direct site URL
+>    (`{site}.atlassian.net`) always returns 401. Must use the Atlassian API gateway
+>    (`https://api.atlassian.com/ex/jira/{cloudUuid}/rest/agile/1.0`) with the
+>    `Authorization` header from `.codeartsdoer/mcp/mcp_settings.json`
+>    (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). On Windows, the
+>    CodeArts Bash tool strips `$` from inline PowerShell — always write a `.ps1`
+>    script file first, then execute with `powershell -File`.
 > 7. **JFrog Docker repository naming**: Do NOT use underscores in repository names
 >    (DNS limitation). Use hyphens (e.g., `docker-dev-local` not `docker_dev_local`).
 > 8. **JFrog build API requires project param**: `GET /artifactory/api/build/{name}`
@@ -677,9 +691,9 @@ Ready-to-fill templates are in `references/templates/`:
   analysis. Use Semgrep MCP for local scanning.
 - CI/CD is **auto-triggered** on push to `dev` (not manual). This ensures
   only reviewed, tested code enters the pipeline immediately after merge.
-- All SDD documents (`spec.md`, `design.md`, `tasks.md`) are pushed DIRECTLY to GitHub
-  (no PR needed - `.opencode/**` exempt via path-based branch protection). Developer agent
-  pushes directly to `dev`.
+- All SDD documents (`spec.md`, `design.md`, `tasks.md`) are pushed to GitHub
+  via a developer agent on a docs branch + PR targeting `dev` (GitHub branch protection
+  applies to the whole branch, so a PR is required).
 - **Step 5 (E2E + Auto-Merge):** Tester runs E2E, then PM verifies gates +
   asks human approval, developer agent merges feature PRs into `dev`. CI/CD
   auto-triggers on dev push (no separate Step 5b or manual CI/CD trigger).
@@ -695,8 +709,8 @@ Ready-to-fill templates are in `references/templates/`:
   executes (SSH into Huawei Cloud ECS, docker pull, docker run, health check,
   rollback on failure).
 - **Step 9 (Report Push):** PM Agent generates HTML report, developer agent
-  (Backend if both active, otherwise sole developer) pushes DIRECTLY to `dev`
-  (no PR - `reports/**` exempt via path-based branch protection).
+  (Backend if both active, otherwise sole developer) creates a docs branch + PR
+  targeting `dev` and merges it (GitHub branch protection applies to the whole branch).
 
 ## Sharing This Skill
 

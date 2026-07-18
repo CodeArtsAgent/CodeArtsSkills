@@ -145,6 +145,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: -Dsonar.qualitygate.wait=true
 
   sonar-qg-check:
     needs:
@@ -219,9 +221,16 @@ jobs:
           push: true
           tags: |
             ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }}
-            ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Publish image digest as release artifact
+        run: |
+          DIGEST=$(docker buildx imagetools inspect ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }} --format '{{.Digest}}' 2>/dev/null || echo "")
+          echo "RELEASE_IMAGE=${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }}" >> $GITHUB_ENV
+          echo "RELEASE_DIGEST=${DIGEST}" >> $GITHUB_ENV
+          echo "Deployable image: ${{ env.JF_DOCKER_REGISTRY }}/<JFROG_REPO_KEY>/<GITHUB_REPO>:${{ github.sha }}"
+          echo "Digest: ${DIGEST}"
 
       - name: Move Docker cache
         run: |

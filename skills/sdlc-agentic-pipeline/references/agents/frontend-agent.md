@@ -95,12 +95,12 @@ When the Frontend Agent is the primary PR operator, it handles:
 > the frontend code already exists and the Frontend Agent starts at Step 1.
 
 ### 0.1 Context
-- The PM Agent has created the GitHub repository (Step 0.1.B.3) and cloned it locally
+- The Backend Agent has created the GitHub repository (Step 0.1.B.3) and cloned it locally
 - The PM Agent has parsed the user's Project Prompt and extracted the frontend scope
 - The PM Agent invokes the Frontend Agent via the Task tool with:
   - The frontend requirements extracted from the Project Prompt
   - The tech stack to use (e.g., vanilla HTML/CSS/JS)
-  - The path to the cloned repo's `frontend/` directory
+  - The repository URL/path (the Frontend Agent clones or uses an explicitly provided workspace)
 
 ### 0.2 Build Frontend Codebase
 - Analyze the frontend requirements to identify pages, components, and UI features
@@ -341,18 +341,18 @@ If the `dev` -> `main` merge encounters conflicts:
    git commit -m "docs: add SDLC process report"
    git push origin docs/sdlc-reports
    ```
-4. DIRECT PUSH to `dev` (no PR - `reports/**` exempt via path-based branch protection):
-   ```
-   github_create_pull_request(
-     owner="<GITHUB_OWNER>",
-     repo="<GITHUB_REPO>",
-     title="docs: SDLC process report",
-     head="docs/sdlc-reports",
-     base="dev"
-   )
-   ```
-5. Report commit URL to PM Agent
-6. Report PR link to PM Agent: `@agent:pm Report PR created and merged: <PR_URL>`
+ 4. Create PR to `dev` and merge it:
+    ```
+    github_create_pull_request(
+      owner="<GITHUB_OWNER>",
+      repo="<GITHUB_REPO>",
+      title="docs: SDLC process report",
+      head="docs/sdlc-reports",
+      base="dev"
+    )
+    ```
+ 5. After PR is created, merge it via `github_merge_pull_request`
+ 6. Report commit URL and merged PR link to PM Agent: `@agent:pm Report published and merged: <PR_URL>`
 
 ---
 
