@@ -1,13 +1,13 @@
 ---
 name: skill-installer
-description: "Single entry point to install, update, delete, or check the status of any supported CodeArts skill/tool installer. Consolidates four installers behind one skill: superpowers, office-mcp, playwright-cli, and openspec. OpenSpec and other tools don't natively support CodeArts; this meta-installer bridges them. Specify the target via --target <name> (or positionally). Use whenever the user wants to install/update/delete any of these targets, or to list what's supported. Triggers on: install superpowers, install office-mcp, install playwright-cli, install openspec, 一键安装技能, 安装技能, skill installer, update skills, uninstall skills, 安装openspec, 安装office文档工具, 安装浏览器自动化工具."
+description: "Single entry point to install, update, delete, or check the status of any supported CodeArts skill/tool installer. Consolidates five installers behind one skill: superpowers, office-mcp, playwright-cli, openspec, and spec-kit. OpenSpec, Spec Kit and other tools don't natively support CodeArts; this meta-installer bridges them. Specify the target via --target <name> (or positionally). Use whenever the user wants to install/update/delete any of these targets, or to list what's supported. Triggers on: install superpowers, install office-mcp, install playwright-cli, install openspec, install spec-kit, 一键安装技能, 安装技能, skill installer, update skills, uninstall skills, 安装openspec, 安装spec-kit, 安装office文档工具, 安装浏览器自动化工具."
 ---
 
 # Skill Installer
 
 One entry point for all CodeArts skill/tool installers. Pass the target name via `--target <name>` (or positionally) and the command (`init`/`update`/`delete`/`status`). The dispatcher validates each target's supported scopes and commands before running, then delegates to the target's adapter.
 
-This is the **only** installer skill exposed to CodeArts. The four individual installers (`superpowers-installer`, `office-mcp-installer`, `playwright-cli-installer`, `openspec-installer`) are consolidated as internal adapter modules under `scripts/targets/`.
+This is the **only** installer skill exposed to CodeArts. The five individual installers (`superpowers-installer`, `office-mcp-installer`, `playwright-cli-installer`, `openspec-installer`, `spec-kit-installer`) are consolidated as internal adapter modules under `scripts/targets/`.
 
 ## Quick Start
 
@@ -39,6 +39,7 @@ Positional shorthand: `init openspec` ≡ `init --target openspec`.
 | `office-mcp` | project | init, update, delete, status | MCP server (39 Word/Excel/PPT/PDF/OCR tools) + skill + MCP config |
 | `playwright-cli` | project, user | init, update, delete, status | playwright-cli skill + `@playwright/cli` + chromium browser |
 | `openspec` | project, user | init, update, delete, status | OpenSpec SDD skills (propose/explore/apply/sync/archive) |
+| `spec-kit` | project, user | init, update, delete, status | GitHub Spec Kit SDD skills (/speckit.constitution/specify/plan/tasks/implement) |
 
 Capability gating rejects unsupported combos up front — e.g. `init --target office-mcp --user` errors ("office-mcp supports project scope only"); `status --target superpowers` errors ("superpowers has no status command").
 
@@ -54,7 +55,7 @@ Capability gating rejects unsupported combos up front — e.g. `init --target of
 
 ## Requirements
 
-Node.js (≥ 20.19.0 for openspec; ≥ 18 otherwise), npm, and git — all already required by CodeArts. Individual targets may install global packages (openspec CLI, @playwright/cli) or download browsers automatically. Works on Windows, Linux, and macOS.
+Node.js (≥ 20.19.0 for openspec; ≥ 18 otherwise), npm, and git — all already required by CodeArts. Individual targets may install global packages (openspec CLI, @playwright/cli) or download browsers automatically. `spec-kit` additionally requires uv (auto-installed if missing) and provisions Python 3.12 via uv. Works on Windows, Linux, and macOS.
 
 ## Layout
 
@@ -69,6 +70,7 @@ skill-installer/
 │       ├── superpowers.js
 │       ├── office-mcp.js
 │       ├── playwright-cli.js
-│       └── openspec.js
+│       ├── openspec.js
+│       └── spec-kit.js
 └── assets/manifests/         # runtime manifests (gitignored)
 ```
