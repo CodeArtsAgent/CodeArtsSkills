@@ -2,7 +2,7 @@
 description: >-
   CI/CD pipeline management via GitHub Actions, artifact verification in JFrog Artifactory,
   SonarCloud code scanning, Docker containerization, and infrastructure operations.
-mode: subagent
+mode: all
 tools:
   write: true
   read: true
@@ -23,7 +23,6 @@ mcp_tools:
   sonarqube: true
   semgrep: true
   terraform: true
-
 permission:
   skill:
     '*': deny
@@ -32,8 +31,6 @@ disable: false
 scope: project
 avatar: avatar1
 ---
-
-# DevOps Engineer Agent - Step 0 (Project Bootstrap) | Step 6 (CI/CD: build -> sonar-scan -> QG -> deploy -> verify, Node.js 22, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true) | Step 8 (Deployment)
 
 ## Active Agent Identification
 **[DEVOPS ENGINEER AGENT ACTIVE]** - This agent is currently executing the DevOps workflow step.
@@ -328,6 +325,7 @@ Procedure:
   ```
 
   **macOS/Linux (Bash):**
+
   ```bash
   runs=$(curl -s -H "Authorization: Bearer $token" \
     "https://api.github.com/repos/<GITHUB_OWNER>/<GITHUB_REPO>/actions/runs?per_page=5")
@@ -499,16 +497,16 @@ Procedure:
   $ecsUser = "<HUAWEI_ECS_USER>"
    $image = "<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:<RELEASE_TAG>"
    $containerName = "sdlc-pipeline-guideline"
-
+  
    # Capture currently running image for rollback
    $previousImage = ssh -i $sshKey $ecsUser@$ecsHost "docker inspect --format='{{.Config.Image}}' $containerName 2>`$null"
-
+  
    # Pull release image
    ssh -i $sshKey $ecsUser@$ecsHost "docker pull $image"
-
+  
   # Stop and remove existing container (if any)
   ssh -i $sshKey $ecsUser@$ecsHost "docker stop $containerName 2>/dev/null; docker rm $containerName 2>/dev/null"
-
+  
   # Start new container
   ssh -i $sshKey $ecsUser@$ecsHost "docker run -d --name $containerName -p 80:80 $image"
   ```
@@ -520,16 +518,16 @@ Procedure:
   ecsUser="<HUAWEI_ECS_USER>"
   image="<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:<RELEASE_TAG>"
   containerName="sdlc-pipeline-guideline"
-
+  
   # Capture currently running image for rollback
   previousImage=$(ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker inspect --format='{{.Config.Image}}' $containerName 2>/dev/null" || echo "")
-
+  
   # Pull release image
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker pull $image"
-
+  
   # Stop and remove existing container (if any)
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker stop $containerName 2>/dev/null; docker rm $containerName 2>/dev/null"
-
+  
   # Start new container
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker run -d --name $containerName -p 80:80 $image"
   ```
@@ -541,7 +539,7 @@ Procedure:
   ```powershell
   # Check container status
   ssh -i $sshKey $ecsUser@$ecsHost "docker ps | grep $containerName"
-
+  
   # Health check (HTTP 200 expected)
   ssh -i $sshKey $ecsUser@$ecsHost "curl -s -o /dev/null -w '%{http_code}' http://localhost:80"
   ```
@@ -550,7 +548,7 @@ Procedure:
   ```bash
   # Check container status
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker ps | grep $containerName"
-
+  
   # Health check (HTTP 200 expected)
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "curl -s -o /dev/null -w '%{http_code}' http://localhost:80"
   ```
@@ -678,3 +676,9 @@ For local state (default), this file is not needed.
 | **7** (Release) | If `github` NOT selected -> skip `dev`->`main` merge (no remote branches). |
 | **8** (Deploy) | If `huawei-ecs` NOT selected -> **skip entirely** (no deployment target). If `jfrog` NOT selected but `huawei-ecs` IS -> warn that there's no Docker image source; deployment will require a manual image. JFrog uses REST API (no MCP). |
 | **9** (Report) | Report generation always runs (doc-expert always available). |
+
+# Hands-off
+
+If the task is dispatched by pm-agent, always hands-off to pm-agent with a reports
+
+If the task is created by yourself, no need to hands-off to other agents

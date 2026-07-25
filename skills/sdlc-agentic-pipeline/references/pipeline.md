@@ -18,23 +18,23 @@ Detailed per-step orchestration for the agentic SDLC flow.
 ```
 Branch Strategy:  main (production) <- dev (integration) <- feature/fix/bug/docs branches
 
-Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
+Step 1: PM Agent — Requirement Breakdown (PRD + Jira)
    |
    +-> Step 1b: Frontend/Backend Agent — Requirement Review (approve or flag gaps)
          |
          +-> Step 2: PM Agent — Sprint Start & SDD Setup (Jira sprint + SDD docs PR -> dev)
                |
-               +-> Step 3: Frontend/Backend Agent — Development, Semgrep Pre-Scan & Fix
+               +-> Step 3: Frontend/Backend Agent — Development & Pre-Scan
                      |
                      +-> Step 4: Code Reviewer Agent — PR Review & Approval
                            |
-                           +-> Step 5: Tester Agent — E2E Testing (Playwright skill)
+                           +-> Step 5: Tester Agent — E2E Testing
                                  |
-                                 +-> Step 6: DevOps Agent — CI/CD + JFrog + SonarCloud (combined)
+                                 +-> Step 6: DevOps Agent — CI/CD + Artifact Verification
                                        |
                                        +-> Step 7: PM + Developer - Release Review -> merge dev -> main
                                              |
-                                             +-> Step 8: PM + DevOps - Deployment on ECS
+                                             +-> Step 8: PM + DevOps - Deployment
                                                    |
                                                    +-> Step 9: PM + Developer - Sprint Close, Retro + Report
 ```
@@ -62,7 +62,7 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 ### Step 1: PM Agent — Requirement Breakdown
 - **Owner**: PM Agent
 - **Conditional**: `jira` NOT selected -> skip Jira task creation; derive from PRD/local. `github` NOT selected -> analyze local directory. `prd` always available.
-- **Input**: CURATED CONTEXT from Step 0.DA (if design-architecture agent ran)
+- **Input**: CURATED CONTEXT from Step 0.DA (if architect agent ran)
 - **Actions**:
   1. Analyze GitHub repository structure (READ-ONLY via GitHub MCP)
   2. Generate PRD via `prd` skill
@@ -105,17 +105,17 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 - **Output**: Active sprint with all issues, SDD/openspec directories created and merged to `dev`
 - **Full details**: See `agents/pm-agent.md` §STEP 2
 
-### Step 3: Frontend/Backend Agent — Development, Semgrep Pre-Scan & Fix
+### Step 3: Frontend/Backend Agent — Development & Pre-Scan
 - **Owner**: Frontend Agent, Backend Agent
 - **Conditional**: `github` NOT selected -> no feature branches, no PRs; commit locally. `semgrep` NOT selected -> skip local pre-scan.
-- **Tools**: GitHub MCP, Jira MCP, Bash (linters), Semgrep MCP
+- **Tools**: GitHub MCP, Jira MCP, Bash (linters)
 - **Actions**:
   1. Transition Jira task to "In Progress" (mandatory)
   2. Create feature branch from integration branch, write code
   3. Run local linters, fix all errors
   4. Write unit/component tests; write API tests (backend only)
-  5. Run local Semgrep scan — fix CRITICAL findings before PR
-  6. Push and create PR (base: integration branch, include Semgrep summary in PR comment)
+  5. Run local security scan — fix CRITICAL findings before PR
+  6. Push and create PR (base: integration branch, include scan summary in PR comment)
   7. Transition Jira task to "In Review"
   8. Comment `@agent:code-reviewer PR #X ready for review`
 - **Quality Gate Prevention**: duplication < 3%, security rating A, coverage > 80%
@@ -129,22 +129,22 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
   1. Fetch tasks in "In Review" status
   2. Read PR diff and changed files
   3. Review for code quality, conventions, logic errors, security patterns
-  4. Cross-reference with Semgrep pre-scan summary from Step 3 PR comment
+  4. Cross-reference with security pre-scan summary from Step 3 PR comment
   5. Run `github_run_secret_scanning` for leaked secrets
   6. Submit GitHub PR review (APPROVE / REQUEST_CHANGES)
   7. If CRITICAL issues -> REQUEST_CHANGES, transition Jira BACK to "In Progress"
   8. If approved -> comment `@agent:tester Code review approved - ready for E2E testing`
 - **Full details**: See `agents/code-reviewer-agent.md`
 
-### Step 5: Tester Agent - E2E Testing (Playwright)
+### Step 5: Tester Agent - E2E Testing
 - **Conditional**: `playwright` NOT selected -> skip E2E; Tester produces "no E2E coverage" sign-off. `github` NOT selected -> run tests against local working directory.
 - **Owner**: Tester Agent
-- **Tools**: playwright-cli skill, Jira MCP, Bash
+- **Tools**: E2E testing skill, Jira MCP, Bash
 - **Actions**:
   1. Transition Jira task to "In Testing"
   2. Checkout the feature branch (Tester handles this itself)
-  3. Write E2E test scenarios via `playwright-cli` skill
-  4. Set up test configurations (playwright.config.js, dependencies)
+  3. Write E2E test scenarios via E2E testing skill
+  4. Set up test configurations and dependencies
   5. Run E2E tests locally (must be executed, not just written)
   6. Fix test errors until all pass
   7. If tests fail after fixes -> transition Jira BACK to "In Progress", comment throwback
@@ -165,19 +165,19 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 > **NOTE:** CI green and SonarCloud QG are NOT required at this stage.
 > They are gates for the Release Merge (`dev` -> `main`) in Step 7.
 
-### Step 6: DevOps Agent — CI/CD (Auto-Triggered, Node.js 22)
+### Step 6: DevOps Agent — CI/CD (Auto-Triggered)
 - **Owner**: DevOps Agent
-- **Conditional**: `github` NOT selected -> skip. `sonarcloud` NOT selected -> remove Sonar stages. `jfrog` NOT selected -> remove JFrog stages.
-- **Tools**: GitHub MCP, Bash (GitHub API), Jira MCP, SonarCloud MCP
-- **Pipeline stages**: build (1), sonar-scan (2), sonar-qg-check (3), deploy-to-jfrog (4), verify-jfrog (5)
+- **Conditional**: `github` NOT selected -> skip. `sonarcloud` NOT selected -> remove quality scan stages. `jfrog` NOT selected -> remove artifact publish stages.
+- **Tools**: GitHub MCP, Bash (GitHub API), Jira MCP
+- **Pipeline stages**: build (1), quality-scan (2), quality-gate-check (3), publish-artifacts (4), verify-artifacts (5)
 - **Actions**:
   1. Transition Jira task to "In Progress" (CI/CD phase)
   2. Verify/update GitHub Actions workflow (auto-triggered on push to `dev`)
   3. Monitor auto-triggered CI/CD — see `agents/devops-agent.md` §6.5-6.6
   4. If CI fails -> identify failing job+step, trigger error throwback
-  5. If CI passes -> proceed to JFrog + SonarCloud QG verification
-- **JFrog verification**: REST API directly (no MCP server) — see `agents/devops-agent.md` §6.7
-- **SonarCloud QG**: If fails (coverage < 80%, duplication > 3%, security < A) -> do NOT proceed to Step 7
+  5. If CI passes -> proceed to artifact + quality gate verification
+- **Artifact verification**: REST API directly (no MCP server) — see `agents/devops-agent.md` §6.7
+- **Quality Gate**: If fails (coverage < 80%, duplication > 3%, security < A) -> do NOT proceed to Step 7
 - **Full details**: See `agents/devops-agent.md`
 
 ### Step 7: PM + Developer - Release Review & Merge
@@ -187,7 +187,7 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 - **Actions**:
   1. Verify ALL tasks have Code Reviewer sign-off
   2. Verify ALL tasks have Tester E2E sign-off
-  3. Verify SonarCloud QG + JFrog artifacts verified (from Step 6)
+  3. Verify quality gate + artifacts verified (from Step 6)
   4. Verify CI/CD pipeline passed
   5. Verify no open bugs or security vulnerabilities
   6. Verify all feature PRs merged into `dev`
@@ -198,11 +198,11 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 - **Conflict resolution**: Simplified "prefer dev" strategy (domain-owner resolution only if CI/CD fails — see `agents/shared/developer-agent-base.md` §7.3)
 - **Full details**: See `agents/pm-agent.md` §STEP 7 + `agents/shared/developer-agent-base.md` §STEP 7
 
-### Step 8: PM + DevOps - Deployment on Huawei Cloud ECS
+### Step 8: PM + DevOps - Deployment
 - **Owner**: PM Agent (authorizes) + DevOps Agent (executes SSH + Docker)
 - **Conditional**: `huawei-ecs` NOT selected -> skip entirely. `jfrog` NOT selected but `huawei-ecs` IS -> warn no Docker image source.
 - **Tools**: Jira MCP, question tool, Bash (SSH via DevOps Agent)
-- **Prerequisite**: ECS pre-configured during Step 0 (SSH key, Docker, JFrog login)
+- **Prerequisite**: ECS pre-configured during Step 0 (SSH key, Docker, registry login)
 - **Actions**:
   1. PM Agent requires human approval via `question` tool
   2. DevOps Agent pulls Docker image on ECS via SSH
@@ -240,7 +240,7 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
    instead of `\n` for multi-statement commands; `&&` doesn't work in
    PowerShell 5.1. On macOS/Linux (Bash), use `&&` or `;`.
 
-2. **Semgrep MCP timeout**: See
+2. **Security scan MCP timeout**: See
    `setup/critical-warnings.md#WARN-SEMGREP-TIMEOUT`.
 
 3. **GitHub MCP workflow dispatch**: See
@@ -249,10 +249,10 @@ Step 1: PM Agent — Requirement Breakdown (PRD + GitHub + Jira)
 4. **Artifact upload breaks symlinks**: See
    `setup/critical-warnings.md#WARN-ARTIFACT-SYMLINKS`.
 
-5. **SonarCloud token vs GitHub PAT**: See
+5. **Quality gate token vs GitHub PAT**: See
    `setup/critical-warnings.md#WARN-SONAR-TOKEN`.
 
-6. **SonarCloud Automatic Analysis conflict**: See
+6. **Quality gate Automatic Analysis conflict**: See
    `setup/critical-warnings.md#WARN-SONAR-AUTO`.
 
 7. **Jira API auth via Atlassian gateway only**: See
