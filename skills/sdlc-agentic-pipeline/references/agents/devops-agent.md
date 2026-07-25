@@ -2,7 +2,7 @@
 description: >-
   CI/CD pipeline management via GitHub Actions, artifact verification in JFrog Artifactory,
   SonarCloud code scanning, Docker containerization, and infrastructure operations.
-mode: subagent
+mode: all
 tools:
   write: true
   read: true
@@ -22,7 +22,7 @@ mcp_tools:
   github: true
   sonarqube: true
   semgrep: true
-  jfrog: true
+  terraform: true
 permission:
   skill:
     '*': deny
@@ -31,8 +31,6 @@ disable: false
 scope: project
 avatar: avatar1
 ---
-
-# DevOps Engineer Agent - Step 0 (Project Bootstrap) | Step 6 (CI/CD: build -> sonar-scan -> QG -> deploy -> verify, Node.js 22, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true) | Step 8 (Deployment)
 
 ## Active Agent Identification
 **[DEVOPS ENGINEER AGENT ACTIVE]** - This agent is currently executing the DevOps workflow step.
@@ -327,6 +325,7 @@ Procedure:
   ```
 
   **macOS/Linux (Bash):**
+
   ```bash
   runs=$(curl -s -H "Authorization: Bearer $token" \
     "https://api.github.com/repos/<GITHUB_OWNER>/<GITHUB_REPO>/actions/runs?per_page=5")
@@ -367,8 +366,8 @@ Procedure:
 ## STEP 7: JFrog Artifactory Verification + SonarCloud Quality Gate
 
 ### 7.1 JFrog Build Info Verification
-> **NOTE:** If JFrog MCP is unavailable, use the JFrog Artifactory REST API as a fallback.
-> Authentication: Bearer token in `Authorization` header.
+> **NOTE:** JFrog verification uses the JFrog Artifactory REST API directly
+> (no MCP server). Authentication: Bearer token in `Authorization` header.
 > Base URL: `https://<JFROG_PLATFORM_URL>/artifactory/api/`
 
 - **List published builds** via REST API:
@@ -498,16 +497,16 @@ Procedure:
   $ecsUser = "<HUAWEI_ECS_USER>"
    $image = "<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:<RELEASE_TAG>"
    $containerName = "sdlc-pipeline-guideline"
-
+  
    # Capture currently running image for rollback
    $previousImage = ssh -i $sshKey $ecsUser@$ecsHost "docker inspect --format='{{.Config.Image}}' $containerName 2>`$null"
-
+  
    # Pull release image
    ssh -i $sshKey $ecsUser@$ecsHost "docker pull $image"
-
+  
   # Stop and remove existing container (if any)
   ssh -i $sshKey $ecsUser@$ecsHost "docker stop $containerName 2>/dev/null; docker rm $containerName 2>/dev/null"
-
+  
   # Start new container
   ssh -i $sshKey $ecsUser@$ecsHost "docker run -d --name $containerName -p 80:80 $image"
   ```
@@ -519,16 +518,16 @@ Procedure:
   ecsUser="<HUAWEI_ECS_USER>"
   image="<JFROG_DOCKER_REGISTRY>/<JFROG_REPO_KEY>/<GITHUB_REPO>:<RELEASE_TAG>"
   containerName="sdlc-pipeline-guideline"
-
+  
   # Capture currently running image for rollback
   previousImage=$(ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker inspect --format='{{.Config.Image}}' $containerName 2>/dev/null" || echo "")
-
+  
   # Pull release image
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker pull $image"
-
+  
   # Stop and remove existing container (if any)
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker stop $containerName 2>/dev/null; docker rm $containerName 2>/dev/null"
-
+  
   # Start new container
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker run -d --name $containerName -p 80:80 $image"
   ```
@@ -540,7 +539,7 @@ Procedure:
   ```powershell
   # Check container status
   ssh -i $sshKey $ecsUser@$ecsHost "docker ps | grep $containerName"
-
+  
   # Health check (HTTP 200 expected)
   ssh -i $sshKey $ecsUser@$ecsHost "curl -s -o /dev/null -w '%{http_code}' http://localhost:80"
   ```
@@ -549,7 +548,7 @@ Procedure:
   ```bash
   # Check container status
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "docker ps | grep $containerName"
-
+  
   # Health check (HTTP 200 expected)
   ssh -i "$sshKey" "$ecsUser@$ecsHost" "curl -s -o /dev/null -w '%{http_code}' http://localhost:80"
   ```
@@ -578,11 +577,80 @@ If CI/CD, JFrog verification, or SonarCloud fails:
 
 ---
 
+## Terraform MCP Server Configuration & Installation Prerequisites
+
+> **Only applies when `huawei-ecs` is selected AND the user chose Option B (Create
+> New with Terraform) during Step 0.6 onboarding.** If Option A (existing instance)
+> was chosen, this section does not apply.
+
+### Installation Prerequisites
+
+The DevOps Agent checks and installs these if missing:
+
+| Prerequisite | Version | Install Command (Windows) | Install Command (macOS) |
+|---|---|---|---|
+| **Go** | >= 1.26 | `winget install GoLang.Go` | `brew install go` |
+| **Terraform CLI** | >= 1.15 | `winget install Hashicorp.Terraform` | `brew install hashicorp/tap/terraform` |
+| **Terraform MCP Server** | latest | `go install github.com/hashicorp/terraform-mcp-server/cmd/terraform-mcp-server@latest` | same |
+
+After installation, the binary is at:
+- **Windows:** `%USERPROFILE%\go\bin\terraform-mcp-server.exe`
+- **macOS/Linux:** `~/go/bin/terraform-mcp-server`
+
+### MCP Configuration
+
+Add the `terraform` entry to `.codeartsdoer/mcp/mcp_settings.json`:
+
+```json
+"terraform": {
+  "command": "<TERRAFORM_MCP_SERVER_PATH>",
+  "args": ["stdio"],
+  "disabled": false,
+  "timeout": 120000
+}
+```
+
+Where `<TERRAFORM_MCP_SERVER_PATH>` is the absolute path to the binary discovered above.
+
+### Health Check
+
+After adding the entry, verify the MCP connection is healthy:
+
+1. The `terraform` MCP server should appear in the IDE's MCP server list as **connected**
+2. The following tools should be available:
+   - `Terraform_Registry_listProviders` — discover Terraform providers
+   - `Terraform_Registry_providerDetails` — get provider details
+   - `Terraform_Registry_listResources` — list resources for a provider
+   - `Terraform_Registry_resourceDetails` — get resource argument schemas
+   - `Terraform_Registry_resourceArgumentDetails` — detailed argument info
+
+3. Quick validation: call `Terraform_Registry_listProviders` with query `huaweicloud` and confirm `huaweicloud/huaweicloud` appears in results
+
+### TFC Credentials (Optional)
+
+If using Terraform Cloud/Enterprise for remote state, create credentials file:
+
+- **Windows:** `%APPDATA%\terraform.d\credentials.tfrc.json`
+- **macOS/Linux:** `~/.terraform.d/credentials.tfrc.json`
+
+For local state (default), this file is not needed.
+
+### Provisioning Flow
+
+1. Use Terraform MCP Registry tools to discover the HuaweiCloud provider (`huaweicloud/huaweicloud`)
+2. Use `Terraform_Registry_resourceArgumentDetails` to discover the resource schema for the selected compute target
+3. Write Terraform config files (`main.tf`, `variables.tf`, `outputs.tf`, `terraform.tfvars`)
+4. Run `terraform init` → `terraform plan` → `terraform apply -auto-approve`
+5. Capture outputs (instance ID, public IP, private IP, etc.)
+
+---
+
 ## MCPs/Skills Reference
 - **GitHub MCP**: workflow monitoring (auto-triggered), check run monitoring, PR status reading (read-only), branch creation, file push (infrastructure files), branch listing, code search, PR reading
-- **JFrog MCP**: artifact verification, build info, repository management, packages
+- **JFrog REST API**: artifact verification, build info, repository management, packages (credentials via GitHub Actions secrets/variables, no MCP server)
 - **SonarCloud MCP**: quality gate, issue search, security hotspots, coverage, dependency risks
 - **Jira MCP**: task discovery, status transitions, inter-agent comments
+- **Terraform MCP**: provider/resource discovery, schema validation (only when `huawei-ecs` Option B selected)
 - **Bash tool**: `gh` CLI for manual workflow triggers, Docker commands, git operations (clone, commit, push for infrastructure files), SSH for deployment
 
 > **DevOps Agent owns git write operations for infrastructure files ONLY.**
@@ -591,3 +659,26 @@ If CI/CD, JFrog verification, or SonarCloud fails:
 > based on the PR Routing table: Backend Agent (if both active, or only backend),
 > Frontend Agent (if only frontend active).
 > **Existing artifacts are NEVER modified without explicit user approval.**
+
+---
+
+## Conditional Step Behavior (Multi-Tool Selection)
+
+> At the start of the first step, read `.codeartsdoer/tool-selections.json` to
+> determine which tools are active. Use `isSelected(toolId)` to check. If the
+> file is missing, treat all tools as selected (backward-compatible default).
+
+### Per-Step Conditional Logic
+
+| Step | Conditional Behavior |
+|------|---------------------|
+| **6** (CI/CD) | If `github` NOT selected -> **skip entirely** (no GitHub Actions runtime). If `sonarcloud` NOT selected -> remove Sonar scan + QG stages from pipeline. If `jfrog` NOT selected -> remove deploy-to-jfrog + verify-jfrog stages. |
+| **7** (Release) | If `github` NOT selected -> skip `dev`->`main` merge (no remote branches). |
+| **8** (Deploy) | If `huawei-ecs` NOT selected -> **skip entirely** (no deployment target). If `jfrog` NOT selected but `huawei-ecs` IS -> warn that there's no Docker image source; deployment will require a manual image. JFrog uses REST API (no MCP). |
+| **9** (Report) | Report generation always runs (doc-expert always available). |
+
+# Hands-off
+
+If the task is dispatched by pm-agent, always hands-off to pm-agent with a reports
+
+If the task is created by yourself, no need to hands-off to other agents
