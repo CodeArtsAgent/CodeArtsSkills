@@ -1,0 +1,94 @@
+{
+  "rootHash": "1d3413bd4229a7bc1a33a7275bfe24f661e2af875b3817bb06c7a40528152902",
+  "timestamp": 1784633831312,
+  "fileCount": 5,
+  "files": [
+    {
+      "path": "references\\templates\\add_ssh_key.py",
+      "hash": "c2544da25d8c113ee2f6a55deae2bc85bd8a6eddd81aa4c50e4a4281befa6ff8",
+      "size": 2423,
+      "modified": 1784633660371.9912
+    },
+    {
+      "path": "references\\templates\\apply-tool-selections.sh",
+      "hash": "11c8ec5d0bcc94cbf001e8974e5b612ac8c8951f5d08dfd0ce3837542970a511",
+      "size": 5495,
+      "modified": 1784633660378.4995
+    },
+    {
+      "path": "references\\templates\\set-secrets.js",
+      "hash": "1eff7f2759f57c3a46787b52dc0ec18bac2c53bee27b11ba6bdae0120fdb0a67",
+      "size": 6963,
+      "modified": 1784633660396.4924
+    },
+    {
+      "path": "references\\templates\\sprint-scripts\\sprint-close.sh",
+      "hash": "acec39440d42bb64c2652977a95131f1dd99e1682319addac1ba7d7035b776fc",
+      "size": 2713,
+      "modified": 1784633660408.528
+    },
+    {
+      "path": "references\\templates\\sprint-scripts\\sprint-start.sh",
+      "hash": "c1d7650026eaddd5b2243b569b34a929902c2e474bb16f8b191208a388aeaf18",
+      "size": 3117,
+      "modified": 1784633660418.3481
+    }
+  ],
+  "tree": {
+    "hash": "1d3413bd4229a7bc1a33a7275bfe24f661e2af875b3817bb06c7a40528152902",
+    "left": {
+      "hash": "84b4aae00fb328d02da0bc44760d17df09cc5493e399a3793eaea3296f249043",
+      "left": {
+        "hash": "1e8070180fbd05f23009020a4506d2111ebe34025acc44a182e3f243da35fe64",
+        "left": {
+          "hash": "c2544da25d8c113ee2f6a55deae2bc85bd8a6eddd81aa4c50e4a4281befa6ff8",
+          "file": {
+            "path": "references\\templates\\add_ssh_key.py",
+            "hash": "c2544da25d8c113ee2f6a55deae2bc85bd8a6eddd81aa4c50e4a4281befa6ff8",
+            "size": 2423,
+            "modified": 1784633660371.9912
+          }
+        },
+        "right": {
+          "hash": "11c8ec5d0bcc94cbf001e8974e5b612ac8c8951f5d08dfd0ce3837542970a511",
+          "file": {
+            "path": "references\\templates\\apply-tool-selections.sh",
+            "hash": "11c8ec5d0bcc94cbf001e8974e5b612ac8c8951f5d08dfd0ce3837542970a511",
+            "size": 5495,
+            "modified": 1784633660378.4995
+          }
+        }
+      },
+      "right": {
+        "hash": "e79a4e3609d8226cdb397e9431ac3b4e649c327bb159e5d424b98b49c3427aaf",
+        "left": {
+          "hash": "1eff7f2759f57c3a46787b52dc0ec18bac2c53bee27b11ba6bdae0120fdb0a67",
+          "file": {
+            "path": "references\\templates\\set-secrets.js",
+            "hash": "1eff7f2759f57c3a46787b52dc0ec18bac2c53bee27b11ba6bdae0120fdb0a67",
+            "size": 6963,
+            "modified": 1784633660396.4924
+          }
+        },
+        "right": {
+          "hash": "acec39440d42bb64c2652977a95131f1dd99e1682319addac1ba7d7035b776fc",
+          "file": {
+            "path": "references\\templates\\sprint-scripts\\sprint-close.sh",
+            "hash": "acec39440d42bb64c2652977a95131f1dd99e1682319addac1ba7d7035b776fc",
+            "size": 2713,
+            "modified": 1784633660408.528
+          }
+        }
+      }
+    },
+    "right": {
+      "hash": "c1d7650026eaddd5b2243b569b34a929902c2e474bb16f8b191208a388aeaf18",
+      "file": {
+        "path": "references\\templates\\sprint-scripts\\sprint-start.sh",
+        "hash": "c1d7650026eaddd5b2243b569b34a929902c2e474bb16f8b191208a388aeaf18",
+        "size": 3117,
+        "modified": 1784633660418.3481
+      }
+    }
+  }
+}

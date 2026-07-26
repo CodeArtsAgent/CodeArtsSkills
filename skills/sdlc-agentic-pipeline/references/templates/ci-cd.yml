@@ -42,6 +42,21 @@
 #   <GITHUB_REPO>      - repository name (used for image name & build name)
 #   <JFROG_REPO_KEY>   - JFrog Docker repository key
 #   <SETUP_ACTION>/<VERSION>, <INSTALL_COMMAND>, <BUILD_COMMAND> - generic build section
+#
+# =============================================================================
+# CONDITIONAL GENERATION (multi-tool-selection-plan.md §6.3):
+# This is a REFERENCE template. During onboarding, the generation logic reads
+# .codeartsdoer/tool-selections.json and includes ONLY stages for selected tools:
+#   - build:           ALWAYS included (when GitHub is selected - CI/CD runs on GitHub Actions)
+#   - sonar-scan:      included ONLY if SonarCloud (item 3) is selected
+#   - deploy-to-jfrog: included ONLY if JFrog (item 5) is selected
+#   - verify-jfrog:    included ONLY if JFrog (item 5) is selected
+# If GitHub (item 1) is NOT selected, do NOT generate ci-cd.yml at all.
+# If SonarCloud is not selected, no sonar-project.properties is generated.
+# Stage dependencies (needs:) must be adjusted when stages are removed:
+#   - If sonar-scan removed: deploy-to-jfrog needs: [build]
+#   - If deploy-to-jfrog removed: verify-jfrog removed too (no image to verify)
+# =============================================================================
 
 name: CI/CD Pipeline
 
@@ -62,6 +77,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # --- ALWAYS INCLUDED (when GitHub is selected) ---
   build:
     runs-on: ubuntu-latest
 
@@ -110,6 +126,8 @@ jobs:
         # e.g. npm run build, npx ng build --configuration=production,
         #      mvn package, dotnet build, go build ./...
 
+  # --- CONDITIONAL: SonarCloud (item 3, `sonarcloud`) - remove stage if not selected ---
+  # If removed: deploy-to-jfrog should needs: [build] instead of [sonar-scan]
   sonar-scan:
     needs:
       - build
@@ -148,6 +166,8 @@ jobs:
         with:
           args: -Dsonar.qualitygate.wait=true
 
+  # --- CONDITIONAL: JFrog (item 5, `jfrog`) - remove stage if not selected ---
+  # If removed: verify-jfrog is also removed (no image to verify)
   deploy-to-jfrog:
     needs:
       - sonar-scan
@@ -225,6 +245,7 @@ jobs:
             "${{ env.JF_BUILD_NUMBER }}" \
             --project="${{ env.JF_PROJECT }}"
 
+  # --- CONDITIONAL: JFrog (item 5, `jfrog`) - remove stage if not selected ---
   verify-jfrog:
     needs:
       - deploy-to-jfrog

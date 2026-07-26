@@ -17,27 +17,43 @@
  *   - GITHUB_PAT: from Step 0.1 (GitHub Personal Access Token)
  *   - SONAR_TOKEN: from Step 0.3 (SonarCloud onboarding)
  *   - JFROG_* values: from Step 0.5 (JFrog Artifactory onboarding)
+ *
+ * CONDITIONAL GENERATION (multi-tool-selection-plan.md §6.4):
+ *   This is a REFERENCE template. During onboarding, the generation logic reads
+ *   .codeartsdoer/tool-selections.json and includes ONLY secrets/vars for
+ *   selected services:
+ *     - SONAR_TOKEN (secret):       include ONLY if SonarCloud (item 3) selected
+ *     - JFROG_PASSWORD (secret):    include ONLY if JFrog (item 5) selected
+ *     - JFROG_PLATFORM_URL (var):   include ONLY if JFrog (item 5) selected
+ *     - JFROG_DOCKER_REGISTRY (var):include ONLY if JFrog (item 5) selected
+ *     - JFROG_USERNAME (var):       include ONLY if JFrog (item 5) selected
+ *     - JFROG_PROJECT (var):        include ONLY if JFrog (item 5) selected
+ *     - SONAR_PROJECT_KEY (var):    include ONLY if SonarCloud (item 3) selected
+ *   If GitHub (item 1) is NOT selected, this script is not needed at all
+ *   (no GitHub Actions to set secrets for).
  */
 
 const CONFIG = {
-  // --- GitHub Repository ---
+  // --- GitHub Repository (required - this script only runs if GitHub is selected) ---
   GITHUB_OWNER: '<GITHUB_OWNER>',
   GITHUB_REPO: '<GITHUB_REPO>',
   GITHUB_PAT: '<GITHUB_PAT>',
 
   // --- GitHub Secrets (encrypted, sensitive data) ---
+  // CONDITIONAL: Include each secret ONLY if the corresponding service was selected.
   SECRETS: {
-    SONAR_TOKEN: '<SONAR_TOKEN>',
-    JFROG_PASSWORD: '<JFROG_PASSWORD>',
+    SONAR_TOKEN: '<SONAR_TOKEN>',     // CONDITIONAL: SonarCloud (item 3)
+    JFROG_PASSWORD: '<JFROG_PASSWORD>', // CONDITIONAL: JFrog (item 5)
   },
 
   // --- GitHub Variables (plain text, non-sensitive data) ---
+  // CONDITIONAL: Include each variable ONLY if the corresponding service was selected.
   VARIABLES: {
-    JFROG_PLATFORM_URL: '<JFROG_PLATFORM_URL>',
-    JFROG_DOCKER_REGISTRY: '<JFROG_DOCKER_REGISTRY>',
-    JFROG_USERNAME: '<JFROG_USERNAME>',
-    JFROG_PROJECT: '<JFROG_PROJECT>',
-    SONAR_PROJECT_KEY: '<SONAR_PROJECT_KEY>',
+    JFROG_PLATFORM_URL: '<JFROG_PLATFORM_URL>',     // CONDITIONAL: JFrog (item 5)
+    JFROG_DOCKER_REGISTRY: '<JFROG_DOCKER_REGISTRY>', // CONDITIONAL: JFrog (item 5)
+    JFROG_USERNAME: '<JFROG_USERNAME>',               // CONDITIONAL: JFrog (item 5)
+    JFROG_PROJECT: '<JFROG_PROJECT>',                  // CONDITIONAL: JFrog (item 5)
+    SONAR_PROJECT_KEY: '<SONAR_PROJECT_KEY>',           // CONDITIONAL: SonarCloud (item 3)
   },
 };
 

@@ -1,4 +1,14 @@
 {
+  "_conditional_generation": {
+    "_doc": "This is a REFERENCE template showing all possible MCP entries. During onboarding, the generation logic reads .codeartsdoer/tool-selections.json and includes ONLY entries for selected MCP items. Unselected entries are omitted entirely. If NO MCP servers are selected, write {\"mcpServers\": {}}.",
+    "selectionMapping": {
+      "atlassian-rovo-mcp": "jira (item 2)",
+      "github": "github (item 1)",
+      "sonarqube": "sonarcloud (item 3)",
+      "semgrep": "semgrep (item 4)",
+      "terraform": "huawei-ecs (item 6, Option B only)"
+    }
+  },
   "mcpServers": {
     "atlassian-rovo-mcp": {
       "url": "https://mcp.atlassian.com/v1/mcp",
@@ -29,11 +39,11 @@
       "disabled": false,
       "timeout": 120000
     },
-    "jfrog": {
-      "url": "<JFROG_PLATFORM_URL>/mcp",
-      "headers": {
-        "Authorization": "Bearer <JFROG_PASSWORD>"
-      }
+    "terraform": {
+      "command": "<TERRAFORM_MCP_SERVER_PATH>",
+      "args": ["stdio"],
+      "disabled": false,
+      "timeout": 120000
     }
   }
 }
