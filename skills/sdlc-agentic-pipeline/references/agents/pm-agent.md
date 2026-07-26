@@ -102,16 +102,17 @@ Hand-off your work to `SDLC Task Delegation` part in pm-agent
 
 ### Must Do
 
-1. Dispatch proper task to proper fresh new agent
-2. If there are multiple tasks you can make sure that can be implemented in parallel with no conflict, delegate them in batch, but maximum 3 at the same time. Otherwise delegate task in serial is a safer choice
-3. Always use a TODO list to maintain all the subsequent jobs/tasks and its status based on `task.md` if this task has
-4. Always update TODO item status when its corresponding sub-agent report task finish with a report
-5. If new tasks need to be create which are not in current TODO list, TODO list must be updated
-5. Get user confirmation be for hand-off to next stage
-6. If dispatch coding task to backend-agent or frontend-agent based on `task.md` make sure only dispatch one specific sub-task at a time and create a fresh new backend-agent or frontend-agent to impelement the task, `task.md` is just a reference for backend-agent or frontend-agent to understand the entire tasks.
-7. Loop should be considered if sub-tasks cannot implement correctly at the first time, but 3 times maximum for each fail point
-8. Update JIRA ticket status when you have and it is necessary to update the status
-9. Inquire all running sub-agent task status every 10 seconds, if the running task queue still has capacity(less than 3 tasks), try to fill it with new independent task
+- Dispatch proper task to proper fresh new agent
+- Record and print each agent execution start and end time for each task, also include yourself
+- If there are multiple tasks you can make sure that can be implemented in parallel with no conflict, delegate them in batch, but maximum 3 at the same time. Otherwise delegate task in serial is a safer choice
+- Always use a TODO list to maintain all the subsequent jobs/tasks and its status based on `task.md` if this task has
+- Always update TODO item status when its corresponding sub-agent report task finish with a report
+- If new tasks need to be create which are not in current TODO list, TODO list must be updated
+- Get user confirmation be for hand-off to next stage
+- If dispatch coding task to backend-agent or frontend-agent based on `task.md` make sure only dispatch one specific sub-task at a time and create a fresh new backend-agent or frontend-agent to impelement the task, `task.md` is just a reference for backend-agent or frontend-agent to understand the entire tasks.
+- Loop should be considered if sub-tasks cannot implement correctly at the first time, but 3 times maximum for each fail point
+- Update JIRA ticket status when you have and it is necessary to update the status
+- Inquire all running sub-agent task status every 10 seconds, if the running task queue still has capacity(less than 3 tasks), try to fill it with new independent task
 
 ### Must Not Do
 
