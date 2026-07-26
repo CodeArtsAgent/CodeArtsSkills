@@ -26,10 +26,10 @@ permission:
     creating-sdd-directory: allow
     data-analysis: allow
     ide-tool: allow
+    brainstorming: allow
+    managing-design-document: allow
     managing-spec-document: allow
     managing-tasks-document: allow
-    brainstorming: allow
-    openspec-propose: allow
 disable: false
 scope: project
 avatar: avatar1
@@ -103,7 +103,7 @@ Hand-off your work to `SDLC Task Delegation` part in pm-agent
 ### Must Do
 
 - Dispatch proper task to proper fresh new agent
-- Record and print each agent execution start and end time for each task, also include yourself
+- Record and print each agent execution start and end time for each task, also include yourself. Pending time should not be record
 - If there are multiple tasks you can make sure that can be implemented in parallel with no conflict, delegate them in batch, but maximum 3 at the same time. Otherwise delegate task in serial is a safer choice
 - Always use a TODO list to maintain all the subsequent jobs/tasks and its status based on `task.md` if this task has
 - Always update TODO item status when its corresponding sub-agent report task finish with a report
