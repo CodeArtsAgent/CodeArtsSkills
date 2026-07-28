@@ -1,4 +1,4 @@
----
+﻿---
 description: >-
   CI/CD pipeline management via GitHub Actions, artifact verification in JFrog Artifactory,
   SonarCloud code scanning, Docker containerization, and infrastructure operations.
@@ -127,7 +127,7 @@ PR operations delegated to developer agents:
   - Frontend service: builds from `frontend/Dockerfile`, exposes web port
   - Network configuration (frontend can reach backend by service name)
   - Volume mounts (if needed for development)
-  - Environment variable injection (from `.env` file)
+  - Environment variable injection (from `<project-root>/.env`)
 - Write any additional Docker-related shared configuration:
   - Network setup, volume definitions
   - Health check definitions for each service
