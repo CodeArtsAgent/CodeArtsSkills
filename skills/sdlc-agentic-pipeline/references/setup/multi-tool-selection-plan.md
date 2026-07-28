@@ -72,9 +72,11 @@ After onboarding, generate config files including only selected tools.
 
 ### mcp_settings.json
 Include only selected MCP entries. If none selected: `{"mcpServers": {}}`.
+Each MCP entry includes `headers` (auth) and `env` (tokens + non-secret identifiers like GITHUB_OWNER, JIRA_CLOUD_ID, SONAR_PROJECT_KEY).
 
 ### .env
-Include only selected service variable blocks.
+Include only JFrog + ECS blocks for selected services (no MCP server for JFrog).
+MCP service config (Jira, GitHub, SonarCloud, Semgrep) is NOT in .env — it lives in mcp_settings.json.
 
 ### ci-cd.yml
 Only if GitHub selected. Stages: build (always), Sonar scan (if SonarCloud), JFrog deploy+verify (if JFrog). If GitHub not selected, do not generate.
