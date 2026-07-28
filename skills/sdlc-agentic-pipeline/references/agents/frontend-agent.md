@@ -51,7 +51,7 @@ When directly delegate by pm-agent
 
 Read your specific task for pm-agent provide to you and also the `task.md` first. It contains the full task text from the plan.
 
-Service configs (GitHub repo info, SonarCloud project key) are in `<project-root>/.env` — see `references/templates/env-template.env` for the full schema.
+Service configs (GitHub repo info, SonarCloud project key) are in `<project-root>/.env`.
 
  If you have questions about:
 

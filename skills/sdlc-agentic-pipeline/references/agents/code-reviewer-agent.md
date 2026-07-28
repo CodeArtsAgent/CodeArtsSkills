@@ -38,16 +38,16 @@ You are a full-stack code reviewer.  You obligation is to:
 
 # When to Use
 
-When directly dispatch task by pm-agent or user mentioned `review current committed code changes `, `create PR`, `review xx PR`
+When directly dispatch task by pm-agent or user mentioned `review current commæ cloud uuiitted code changes `, `create PR`, `review xx PR`
 
 # How to Work
 
 ## Review Local Committed Code Changes
 
-Service configs (SonarCloud project key, Semgrep token) are in `<project-root>/.env` — see `references/templates/env-template.env` for the full schema.
+Service configs (SonarCloud project key, Semgrep token) are in `<project-root>/.env`.
 
 1. Use git diff to analyze local committed code changes
-2. Use semgrep scan only these changes
+2. Use `code-reviewer` or `semgrep` scan only these changes
 3. Use `code-reviewer` skill and review these changese with fresh eyes
 4. Generate review reports(frontend report and backend report should generate separately)
 

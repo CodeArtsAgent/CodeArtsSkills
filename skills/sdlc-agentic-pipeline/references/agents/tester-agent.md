@@ -42,7 +42,7 @@ When `UI test`, `integration test` or `E2E test` is required
 
 # How to Work
 1. Get test tasks from user directly provide or pm-agent dispatch to you
-2. Service configs (GitHub repo info) are in `<project-root>/.env` — see `references/templates/env-template.env` for the full schema
+2. Service configs (GitHub repo info) are in `<project-root>/.env`
 2. Always use `playwright-cli` skill to perform UI test or E2E test
 3. Write test script before testing
   - Firstly follow the `requirement.md` and write test spec doc `test.md`, Use `test-edge-case-analyzer` skill to analyze the edge scenarios and create corresponding cases
