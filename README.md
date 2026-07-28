@@ -16,7 +16,7 @@ Then restart CodeArts. The skill will be available in your next session.
 
 ### skill-installer
 
-Single entry point to install, update, delete, or check the status of any supported CodeArts skill/tool. Consolidates four installers behind one skill — **superpowers**, **office-mcp**, **playwright-cli**, and **openspec** — as internal adapter modules. Specify the target via `--target <name>` (or positionally). 
+Single entry point to install, update, delete, or check the status of any supported CodeArts skill/tool. Consolidates five installers behind one skill — **superpowers**, **office-mcp**, **playwright-cli**, **openspec**, and **spec-kit** — as internal adapter modules. Specify the target via `--target <name>` (or positionally). 
 
 **Installation:**
 
@@ -59,6 +59,7 @@ Or just tell CodeArts: *"install openspec globally"* / *"安装 openspec 到用�
 | `office-mcp` | project | init, update, delete, status | [claude-office-skills/skills](https://github.com/claude-office-skills/skills/tree/main/mcp-servers/office-mcp) | MCP server (39 Word/Excel/PPT/PDF/OCR tools) + skill + MCP config |
 | `playwright-cli` | project, user | init, update, delete, status | [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli) | playwright-cli skill + `@playwright/cli` + chromium |
 | `openspec` | project, user | init, update, delete, status | [Fission-AI/OpenSpec](https://github.com/Fission-AI/OpenSpec) | OpenSpec SDD skills (propose/explore/apply/sync/archive) |
+| `spec-kit` | project, user | init, update, delete, status | [github/spec-kit](https://github.com/github/spec-kit) | GitHub Spec Kit SDD skills (/speckit.constitution/specify/plan/tasks/implement) |
 
 Capability gating rejects unsupported combos up front — e.g. `init --target office-mcp --user` errors (project scope only); `status --target superpowers` errors (no status command).
 
@@ -72,7 +73,7 @@ Capability gating rejects unsupported combos up front — e.g. `init --target of
 
 **ALSO, YOU CAN USE NATURAL LANGUAGE TO LET THIS SKILL INSTALL/UPDATE/DELETE any supported target for you** — just name the target (e.g. "install openspec", "更新 office-mcp", "uninstall superpowers").
 
-**Requirements:** Node.js (≥ 20.19.0 for openspec; ≥ 18 otherwise), npm, and git — all already required by CodeArts. Individual targets may install global packages (openspec CLI, `@playwright/cli`) or download browsers automatically. Works on Windows, Linux, and macOS.
+**Requirements:** Node.js (≥ 20.19.0 for openspec; ≥ 18 otherwise), npm, and git — all already required by CodeArts. Individual targets may install global packages (openspec CLI, `@playwright/cli`) or download browsers automatically. `spec-kit` additionally requires [uv](https://docs.astral.sh/uv/) (auto-installed if missing) and provisions Python 3.12 via uv. Works on Windows, Linux, and macOS.
 
 **Verify:** after install + restart, ask CodeArts something target-specific — e.g. "Propose a new feature using OpenSpec", "Read the Excel file at ./data.xlsx", "Tell me about your superpowers", or "Open https://example.com with playwright-cli".
 

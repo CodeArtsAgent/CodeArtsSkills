@@ -3,4 +3,5 @@ module.exports = [
   require('./office-mcp'),
   require('./playwright-cli'),
   require('./openspec'),
+  require('./spec-kit'),
 ];
