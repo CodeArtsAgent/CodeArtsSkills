@@ -173,7 +173,7 @@ Before merging any feature PR, verify ALL of the following
 3. Human approval received (PM Agent asks user via `question` tool)
 
 ### 5b.2 Merge Feature PRs
-- For each feature PR:
+- For each feature PR (`GITHUB_OWNER`, `GITHUB_REPO` from `mcp_settings.json` `env`):
   ```
   github_merge_pull_request(
     owner="<GITHUB_OWNER>",
@@ -192,7 +192,7 @@ Before merging any feature PR, verify ALL of the following
 > (sign-offs + human approval). Developer agent executes PR creation and merge.
 
 ### 7.1 Create Release PR
-- Create a PR from `dev` -> `main` via `github_create_pull_request`:
+- Create a PR from `dev` -> `main` via `github_create_pull_request` (`GITHUB_OWNER`, `GITHUB_REPO` from `mcp_settings.json` `env`):
   ```
   github_create_pull_request(
     owner="<GITHUB_OWNER>",
@@ -254,7 +254,7 @@ If the `dev` -> `main` merge encounters conflicts:
    git commit -m "docs: add SDLC process report"
    git push origin docs/sdlc-reports
    ```
-4. Create PR to `dev` and merge it:
+ 4. Create PR to `dev` and merge it (`GITHUB_OWNER`, `GITHUB_REPO` from `mcp_settings.json` `env`):
    ```
    github_create_pull_request(
      owner="<GITHUB_OWNER>",

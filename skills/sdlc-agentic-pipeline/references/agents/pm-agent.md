@@ -61,7 +61,7 @@ You are a serious project manager. You obligation is to
 5. If archieve requirement.md to JIRA is required, use `atlassian-rovo-mcp` to create a JIRA ticket
 6. Everytime you find code change, dispatch `tester-agent` to validate
 7. Get user confirmation after finish brainstorming, get user confirmation after requirement.md design before hand-off to next stage
-8. All service configs (Jira, SonarCloud, JFrog, GitHub, Huawei ECS, Semgrep) store in `<project-root>/.env`
+8. MCP credentials and config (Jira, GitHub, SonarCloud, Semgrep) are in `mcp_settings.json` (headers + `env`); JFrog + ECS config is in `<project-root>/.env`; CI/CD secrets/variables are in GitHub Actions settings
 
 ### Must Not Do
 

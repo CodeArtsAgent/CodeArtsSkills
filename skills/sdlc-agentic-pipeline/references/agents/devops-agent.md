@@ -127,7 +127,7 @@ PR operations delegated to developer agents:
   - Frontend service: builds from `frontend/Dockerfile`, exposes web port
   - Network configuration (frontend can reach backend by service name)
   - Volume mounts (if needed for development)
-  - Environment variable injection (from `<project-root>/.env`)
+  - Environment variable injection (JFrog + ECS config from `<project-root>/.env`)
 - Write any additional Docker-related shared configuration:
   - Network setup, volume definitions
   - Health check definitions for each service
@@ -411,7 +411,7 @@ Procedure:
 
 ### 7.4 SonarCloud Quality Gate Check
 - Verify SonarCloud scan completed via `sonarqube_get_project_quality_gate_status`
-- Use project key from `.env`: `SONAR_PROJECT_KEY`
+- Use project key from `mcp_settings.json` (`sonarqube.env.SONAR_PROJECT_KEY`): `SONAR_PROJECT_KEY`
 - Specify `branch: "dev"` when querying SonarCloud (CI/CD runs on `dev` branch)
 - If Quality Gate **PASSES**:
   - Comment on Jira task: `@agent:pm SonarCloud Quality Gate PASSED - CI/CD + JFrog + SonarCloud all green`

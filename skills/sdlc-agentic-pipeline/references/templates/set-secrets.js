@@ -13,10 +13,11 @@
  *   2. Run: node set-secrets.js
  *
  * VALUES SOURCE:
- *   - GITHUB_OWNER / GITHUB_REPO: from Step 0.1 (GitHub onboarding)
- *   - GITHUB_PAT: from Step 0.1 (GitHub Personal Access Token)
- *   - SONAR_TOKEN: from Step 0.3 (SonarCloud onboarding)
- *   - JFROG_* values: from Step 0.5 (JFrog Artifactory onboarding)
+ *   - GITHUB_OWNER / GITHUB_REPO: from .codeartsdoer/mcp/mcp_settings.json -> mcpServers["github"].env
+ *   - GITHUB_PAT: from .codeartsdoer/mcp/mcp_settings.json -> mcpServers["github"].headers.Authorization
+ *   - SONAR_TOKEN: from .codeartsdoer/mcp/mcp_settings.json -> mcpServers["sonarqube"].headers.Authorization
+ *   - SONAR_PROJECT_KEY: from .codeartsdoer/mcp/mcp_settings.json -> mcpServers["sonarqube"].env
+ *   - JFROG_* values: from <project-root>/.env (JFROG_PLATFORM_URL, JFROG_DOCKER_REGISTRY, JFROG_USERNAME, JFROG_PASSWORD, JFROG_PROJECT)
  *
  * CONDITIONAL GENERATION (multi-tool-selection-plan.md §6.4):
  *   This is a REFERENCE template. During onboarding, the generation logic reads
