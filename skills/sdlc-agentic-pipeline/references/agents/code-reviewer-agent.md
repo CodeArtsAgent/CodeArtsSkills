@@ -47,7 +47,7 @@ When directly dispatch task by pm-agent or user mentioned `review current commæ
 Service configs (SonarCloud project key, Semgrep token) are in `<project-root>/.env`.
 
 1. Use git diff to analyze local committed code changes
-2. Use `code-reviewer` or `semgrep` scan only these changes
+2. Use `sonarqube` or `semgrep` scan only these changes
 3. Use `code-reviewer` skill and review these changese with fresh eyes
 4. Generate review reports(frontend report and backend report should generate separately)
 
