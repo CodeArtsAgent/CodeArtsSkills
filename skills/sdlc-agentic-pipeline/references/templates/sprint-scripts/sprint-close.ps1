@@ -7,7 +7,7 @@
 #   3. Delete this file after execution
 #
 # VALUES SOURCE:
-#   - CLOUD_UUID: from atlassian-rovo-mcp_getVisibleJiraProjects (extract from self URL)
+#   - CLOUD_UUID: from https://<my-site-name>.atlassian.net/_edge/tenant_info (returns {"cloudId":"..."})
 #   - AUTH_HEADER: from .codeartsdoer/mcp/mcp_settings.json -> mcpServers["atlassian-rovo-mcp"].headers.Authorization
 #   - SPRINT_ID: the sprint to close
 #

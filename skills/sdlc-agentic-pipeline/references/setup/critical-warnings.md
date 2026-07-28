@@ -25,12 +25,16 @@ return **401 Unauthorized**. The MCP auth header (same Base64 `email:token`)
 works via the **Atlassian API gateway** at
 `api.atlassian.com/ex/jira/{cloudUuid}/rest/...`.
 
-The cloud UUID is NOT the site URL — it must be discovered separately by
-calling `atlassian-rovo-mcp_getVisibleJiraProjects` and extracting the UUID
-from the `self` URL in the response:
+The cloud ID is NOT the site URL — it must be discovered separately.
+Request the tenant info endpoint from a browser or REST client:
 ```
-"self": "https://api.atlassian.com/ex/jira/{cloudUuid}/rest/api/3/project/search..."
+https://<my-site-name>.atlassian.net/_edge/tenant_info
 ```
+This returns:
+```json
+{"cloudId":"<your_cloud_id>"}
+```
+Use the `cloudId` value in the gateway URL.
 
 Use the `Authorization` header from `.codeartsdoer/mcp/mcp_settings.json`
 (`mcpServers["atlassian-rovo-mcp"].headers.Authorization`). Any other auth
@@ -138,7 +142,7 @@ field on each issue individually.
 ## WARN-GITHUB-WORKFLOW-DISPATCH: GitHub MCP Lacks Workflow Dispatch
 
 GitHub MCP does not support workflow dispatch. Use the REST API with GitHub
-PAT from `.codeartsdoer/mcp/mcp_settings.json`:
+PAT and repo info from `.codeartsdoer/mcp/mcp_settings.json`:
 
 **macOS/Linux:**
 ```bash
@@ -148,6 +152,10 @@ curl -X POST \
   "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/actions/workflows/ci-cd.yml/dispatches" \
   -d '{"ref":"dev"}'
 ```
+
+> `$GITHUB_PAT`, `$GITHUB_OWNER`, `$GITHUB_REPO` are read from
+> `mcp_settings.json` (`github.headers.Authorization`, `github.env.GITHUB_OWNER`,
+> `github.env.GITHUB_REPO`).
 
 **Windows:**
 ```powershell

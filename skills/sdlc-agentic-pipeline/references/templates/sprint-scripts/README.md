@@ -14,9 +14,8 @@ Used by the PM Agent in Steps 2 (sprint start) and 9 (sprint close).
 
 ## Prerequisites
 
-- **Cloud UUID**: Discovered via `atlassian-rovo-mcp_getVisibleJiraProjects`.
-  Extract the UUID from the `self` URL in the response:
-  `https://api.atlassian.com/ex/jira/{cloudUuid}/rest/api/3/...`
+- **Cloud ID**: Discovered via `https://<my-site-name>.atlassian.net/_edge/tenant_info`
+  (returns `{"cloudId":"<your_cloud_id>"}`).
 - **Auth header**: Read from `.codeartsdoer/mcp/mcp_settings.json`,
   key: `mcpServers["atlassian-rovo-mcp"].headers.Authorization`
 - **Board ID**: Found by listing boards and filtering by project key

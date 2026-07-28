@@ -47,8 +47,7 @@ Selections persisted to `.codeartsdoer/tool-selections.json`. Drives all downstr
 6. Persist selected integration branch for all downstream agents
 
 ### Config Output
-- `mcp_settings.json` -> `github` entry
-- `.env` -> `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_PAT`
+- `mcp_settings.json` -> `github` entry (headers + `env`: `GITHUB_OWNER`, `GITHUB_REPO`)
 
 ---
 
@@ -56,11 +55,10 @@ Selections persisted to `.codeartsdoer/tool-selections.json`. Drives all downstr
 
 1. Ask: Jira site URL, email, API token, project key
 2. Verify via `atlassian-rovo-mcp_getVisibleJiraProjects`
-3. Extract cloud UUID from response `self` URL
+3. Discover cloud ID via: `https://<my-site-name>.atlassian.net/_edge/tenant_info` (returns `{"cloudId":"<your_cloud_id>"}`)
 
 ### Config Output
-- `mcp_settings.json` -> `atlassian-rovo-mcp` entry
-- `.env` -> `JIRA_CLOUD_ID`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`
+- `mcp_settings.json` -> `atlassian-rovo-mcp` entry (headers + `env`: `JIRA_CLOUD_ID`, `JIRA_PROJECT_KEY`)
 
 > **WARNING:** See `critical-warnings.md#WARN-JIRA-401` — direct site URL returns 401. Use API gateway.
 
@@ -73,21 +71,25 @@ Selections persisted to `.codeartsdoer/tool-selections.json`. Drives all downstr
 3. **MUST disable Automatic Analysis** (see `critical-warnings.md#WARN-SONAR-AUTO`)
 
 ### Config Output
-- `mcp_settings.json` -> `sonarqube` entry
+- `mcp_settings.json` -> `sonarqube` entry (headers + `env`: `SONAR_PROJECT_KEY`)
 - `sonar-project.properties`
-- `.env` -> `SONAR_PROJECT_KEY`, `SONAR_ORGANIZATION`, `SONAR_TOKEN`
 - GitHub secret: `SONAR_TOKEN`
 
 ---
 
 ## 0.4 - Semgrep Onboarding (if `semgrep` selected)
 
-1. Ask: Semgrep app token (optional for local scanning)
-2. Verify: `semgrep` MCP connection
+1. Install Semgrep CLI:
+   - macOS/Linux: `pip install semgrep` (or `brew install semgrep`)
+   - Windows: `pip install semgrep`
+2. Discover executable path:
+   - macOS/Linux: `which semgrep`
+   - Windows: `where semgrep`
+3. Verify: `semgrep --version`
+4. Verify MCP connection
 
 ### Config Output
-- `mcp_settings.json` -> `semgrep` entry
-- `.env` -> `SEMGREP_APP_TOKEN`
+- `mcp_settings.json` -> `semgrep` entry (command: executable path)
 
 ---
 
@@ -97,7 +99,7 @@ Selections persisted to `.codeartsdoer/tool-selections.json`. Drives all downstr
 2. Verify: `GET /artifactory/api/repositories` with Bearer token
 
 ### Config Output
-- `.env` -> `JFROG_PLATFORM_URL`, `JFROG_USERNAME`, `JFROG_PASSWORD`, `JFROG_PROJECT`, `JFROG_DOCKER_REGISTRY`, `JFROG_REPO_KEY`
+- `.env` -> `JFROG_PLATFORM_URL`, `JFROG_USERNAME`, `JFROG_PASSWORD`, `JFROG_PROJECT`, `JFROG_DOCKER_REGISTRY`, `JFROG_REPO_KEY` (no MCP server for JFrog)
 - GitHub secrets: `JFROG_PASSWORD`
 - GitHub variables: `JFROG_PLATFORM_URL`, `JFROG_DOCKER_REGISTRY`, `JFROG_USERNAME`, `JFROG_PROJECT`
 

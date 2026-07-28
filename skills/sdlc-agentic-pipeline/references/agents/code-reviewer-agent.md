@@ -44,7 +44,7 @@ When directly dispatch task by pm-agent or user mentioned `review current commæ
 
 ## Review Local Committed Code Changes
 
-Service configs (SonarCloud project key, Semgrep token) are in `<project-root>/.env`.
+MCP credentials and config (SonarCloud, Semgrep) are in `mcp_settings.json`.
 
 1. Use git diff to analyze local committed code changes
 2. Use `sonarqube` or `semgrep` scan only these changes

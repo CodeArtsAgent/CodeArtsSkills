@@ -11,10 +11,10 @@ Ready-to-fill templates are in `references/templates/`:
 
 | Template | Description |
 |----------|-------------|
-| `mcp-settings.json` | MCP server configuration (conditional: only selected MCP entries included) |
+| `mcp-settings.json` | MCP server configuration with `env` blocks for non-secret identifiers (conditional: only selected MCP entries included) |
 | `ci-cd.yml` | GitHub Actions workflow template (conditional: only selected stages included; not generated if GitHub not selected) |
 | `sonar-project.properties` | SonarCloud project configuration (only if SonarCloud selected) |
-| `env-template.env` | Environment variables (conditional: only selected service blocks included) |
+| `env-template.env` | Environment variables — JFrog + ECS config only (MCP service config lives in mcp_settings.json) |
 | `set-secrets.js` | GitHub Actions secrets/variables setup script (conditional: only selected service secrets/vars) |
 | `add_ssh_key.py` | Python script to add SSH public key to Huawei Cloud ECS for key-based authentication |
 | `apply-tool-selections.ps1` | Windows: updates agent `permission.skill` blocks based on `tool-selections.json` + `skill-registry.json` (methodology skills only, never touches built-in) |
@@ -51,12 +51,12 @@ Ready-to-fill templates are in `references/templates/`:
 > `mcp_settings.json`. If no MCP servers are selected, the pipeline runs
 > in local-only mode.
 
-| MCP Server | Purpose | Auth |
-|------------|---------|------|
-| `atlassian-rovo-mcp` | Jira tasks, sprints, comments, transitions | Basic (Base64 `email:token`) |
-| `github` | Repos, branches, PRs, reviews, workflow dispatch | Bearer PAT |
-| `sonarqube` | Quality gate, issues, coverage, hotspots | Bearer token |
-| `semgrep` | Local static analysis, security scanning | App token env |
+| MCP Server | Purpose | Auth | `env` Fields |
+|------------|---------|------|------------------|
+| `atlassian-rovo-mcp` | Jira tasks, sprints, comments, transitions | Basic (Base64 `email:token`) | `JIRA_CLOUD_ID`, `JIRA_PROJECT_KEY` |
+| `github` | Repos, branches, PRs, reviews, workflow dispatch | Bearer PAT | `GITHUB_OWNER`, `GITHUB_REPO` |
+| `sonarqube` | Quality gate, issues, coverage, hotspots | Bearer token | `SONAR_PROJECT_KEY` |
+| `semgrep` | Local static analysis, security scanning | App token env | — |
 
-JFrog is configured as a service (REST API) in `.env` + GitHub secrets,
-not as an MCP server.
+JFrog is configured as a service (REST API) in `<project-root>/.env` + GitHub Actions secrets/variables,
+not as an MCP server. ECS config is also in `<project-root>/.env`.
