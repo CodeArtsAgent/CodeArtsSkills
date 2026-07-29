@@ -141,7 +141,7 @@ For each selected methodology tool, verify/install/connect/smoke-test:
 |------|--------|---------|------------|
 | SDD Toolkit | N/A (built-in) | N/A | N/A |
 | OpenSpec | `openspec --version` | `npm install -g @fission-ai/openspec@latest` | `openspec list` |
-| Postman | N/A (MCP) | N/A | `postman MCP list workspaces` |
+| Postman | N/A (MCP) | Copy `references/templates/SKILL.md` to `.codeartsdoer/skills/postman/SKILL.md` | `postman MCP list workspaces` |
 | Newman | `newman --version` | `npm install -g newman` | `newman run --version` |
 | Jest | `npx jest --version` | `npm i -D jest` | `npx jest --listTests` |
 | Pytest | `pytest --version` | `pip install pytest` | `pytest --collect-only` |
@@ -150,6 +150,10 @@ For each selected methodology tool, verify/install/connect/smoke-test:
 | Context Mapper | N/A | N/A | N/A |
 | EventStorming | N/A | N/A | N/A |
 | Structurizr | N/A | N/A | N/A |
+
+**Postman MCP config** (`mcp_settings.json`): HTTP type, URL `https://mcp.postman.com/mcp`, headers `Authorization: Bearer <POSTMAN_API_KEY>` (PMAK from Settings -> API Keys).
+
+**Newman cloud collections**: `newman run "https://api.getpostman.com/collections/<id>?apikey=$POSTMAN_API_KEY"` (API key via env var only).
 
 **Failure rule:** If a tool fails its smoke test, report to user, skip that tool, and continue with remaining tools.
 
