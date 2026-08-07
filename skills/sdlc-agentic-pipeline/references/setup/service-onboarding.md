@@ -6,15 +6,17 @@ Walk the user through platform setup. Ask questions, collect answers, fill templ
 
 ---
 
-## 0.0 - Auto-Provision Agent Definition Files & skill-installer
+## 0.0 - Auto-Provision Agent Definition Files, skill-installer & Brainstorming
 
-Copy 7 agent files from `references/agents/` to `.codeartsdoer/agents/`. Install `skill-installer` from GitHub. Idempotent. No user action needed.
+Copy 8 agent files + 1 shared base file from `references/agents/` to `.codeartsdoer/agents/`. Install `skill-installer` from GitHub. Copy bundled `brainstorming` skill into `.codeartsdoer/skills/`. Idempotent. No user action needed.
 
-**Agent files**: `pm-agent.md`, `backend-agent.md`, `frontend-agent.md`, `code-reviewer-agent.md`, `tester-agent.md`, `devops-agent.md`, `architect-agent.md`
+**Agent files**: `pm-agent.md`, `backend-agent.md`, `frontend-agent.md`, `code-reviewer-agent.md`, `tester-agent.md`, `devops-agent.md`, `architect-agent.md`, `figma-design-agent.md`
+**Shared base**: `shared/developer-agent-base.md` (inherited by backend & frontend agents via `[OVERRIDE]`)
 
 ```bash
-mkdir -p .codeartsdoer/agents
+mkdir -p .codeartsdoer/agents/shared
 cp .codeartsdoer/skills/sdlc-agentic-pipeline/references/agents/*.md .codeartsdoer/agents/
+cp .codeartsdoer/skills/sdlc-agentic-pipeline/references/agents/shared/*.md .codeartsdoer/agents/shared/
 ```
 
 **skill-installer** (built-in utility skill — installs Playwright, OpenSpec, etc.):
@@ -23,7 +25,13 @@ cp .codeartsdoer/skills/sdlc-agentic-pipeline/references/agents/*.md .codeartsdo
 npx -y skills add https://github.com/CodeArtsAgent/CodeArtsSkills --skill skill-installer -a codearts-agent --copy -y
 ```
 
-Verify all 7 agent files + `.codeartsdoer/skills/skill-installer/SKILL.md` exist before proceeding.
+**Brainstorming** (bundled hard copy — visual companion for interactive spec/requirement brainstorming):
+
+```bash
+cp -r .codeartsdoer/skills/sdlc-agentic-pipeline/skills/brainstorming .codeartsdoer/skills/brainstorming
+```
+
+Verify all 8 agent files, `.codeartsdoer/agents/shared/developer-agent-base.md`, `.codeartsdoer/skills/skill-installer/SKILL.md`, and `.codeartsdoer/skills/brainstorming/SKILL.md` exist before proceeding.
 
 ---
 
@@ -69,6 +77,10 @@ Selections persisted to `.codeartsdoer/tool-selections.json`. Drives all downstr
 1. Ask: SonarCloud organization key, project key, token
 2. Verify via `sonarqube_get_project_quality_gate_status`
 3. **MUST disable Automatic Analysis** (see `critical-warnings.md#WARN-SONAR-AUTO`)
+4. **Azure DevOps mode — manual step:** Configure SonarCloud service connection in Azure DevOps:
+   Getting started guide: https://docs.sonarsource.com/sonarqube-cloud/getting-started/azure-devops
+   Project integration: https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/azure-pipelines/setting-up-project-integration
+   This creates the "SonarCloud Service Connection" required by `SonarCloudPrepare@4` task in `azure-pipelines.yml`.
 
 ### Config Output
 - `mcp_settings.json` -> `sonarqube` entry (headers + `env`: `SONAR_PROJECT_KEY`)
@@ -114,7 +126,9 @@ Selections persisted to `.codeartsdoer/tool-selections.json`. Drives all downstr
 3. Option B: new instance with Terraform — see `devops-agent.md` §"Terraform MCP Server"
 4. Run `add_ssh_key.py` to configure SSH key-based auth
 5. Verify Docker installed and running on ECS
-6. Configure Docker login to JFrog registry on ECS
+6. Configure Docker login to registry on ECS:
+   - **JFrog mode:** `docker login <JFROG_DOCKER_REGISTRY> -u <JFROG_USERNAME> -p <JFROG_PASSWORD>`
+   - **Azure DevOps mode (no JFrog):** `docker login <ACR_NAME>.azurecr.io -u <ACR_NAME> -p $(az acr credential show -n <ACR_NAME> --query passwords[0].value -o tsv)`
 
 ### Config Output
 - `.env` -> `HUAWEI_ECS_HOST`, `HUAWEI_ECS_USER`, `HUAWEI_ECS_SSH_KEY_PATH`
@@ -130,6 +144,209 @@ node .codeartsdoer/skills/skill-installer/scripts/installer.js init --target pla
 ```
 
 This single command replaces manual npm install + browser download + skill file provisioning. Verify: `node .codeartsdoer/skills/skill-installer/scripts/installer.js status --target playwright-cli`.
+
+---
+
+## 0.9 - Azure DevOps CLI (if `azure-devops` selected)
+
+> **IMPORTANT:** The Azure DevOps project and repository must already exist before onboarding. Project and repo creation is manual — the pipeline never creates them.
+
+> All steps below are **executed automatically by the PM Agent via the Bash tool**.
+> The user only provides answers (org URL, project, repo name, PAT) via the `question` tool.
+
+### 0.9.1 Collect User Input
+Ask via `question` tool:
+1. Azure DevOps organization URL (e.g., `https://dev.azure.com/<org>`)
+2. Azure DevOps project name
+3. PAT token (Azure DevOps -> User Settings -> Personal Access Tokens)
+   - Required scopes: Code (read+write), Work Items (read+write), Build (read+execute)
+4. Repository name (must already exist — repo creation is manual, same as GitHub)
+
+### 0.9.2 Auto-Install via skill-installer (PM Agent runs this via Bash)
+
+Invoke `skill-installer` to install azure-devops-cli (skill files + Azure CLI + extension + status check):
+
+```bash
+node .codeartsdoer/skills/skill-installer/scripts/installer.js init --target azure-devops-cli
+```
+
+This single command automatically:
+1. Installs the `azure-devops-cli` skill files from `github/awesome-copilot`
+2. Checks for Azure CLI (`az --version`) — installs if missing
+3. Installs the `azure-devops` CLI extension
+4. Registers the skill in `ProjectSkillStatus.txt`
+5. Writes a manifest for clean uninstall
+
+Verify: `node .codeartsdoer/skills/skill-installer/scripts/installer.js status --target azure-devops-cli`
+
+### 0.9.3 Configure & Authenticate (PM Agent runs these via Bash)
+
+**Configure defaults:**
+> agents use Bash to run `az` commands. See the `azure-devops-cli` skill's reference files for full CLI command syntax.
+```bash
+az devops configure --defaults organization=<AZURE_DEVOPS_ORG_URL> project="<AZURE_DEVOPS_PROJECT>"
+```
+
+**Authenticate non-interactively:**
+> Use `AZURE_DEVOPS_EXT_PAT` env var — the Azure DevOps CLI extension reads it
+> automatically. No interactive `az devops login` prompt needed.
+```bash
+export AZURE_DEVOPS_EXT_PAT="<PAT>"
+```
+**Windows (PowerShell):**
+```powershell
+$env:AZURE_DEVOPS_EXT_PAT = "<PAT>"
+```
+The PAT is set for the current session only. It is NOT written to `.env` or
+any file. The PM Agent sets it in the Bash tool environment before running
+`az` commands.
+
+**Smoke test:**
+```bash
+az devops project show
+```
+If this succeeds, Azure DevOps is fully configured and ready.
+
+### Config Output
+- `.env` -> `AZURE_DEVOPS_ORG_URL`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_REPO`
+- PAT is set via `AZURE_DEVOPS_EXT_PAT` env var at runtime (not persisted to any file)
+
+> **Mutual exclusion:** If GitHub or Jira was also selected, ask the user to deselect them — Azure DevOps replaces both.
+
+### 0.9.4 Azure Container Registry Setup (only if `jfrog` NOT selected)
+
+> Skip this section entirely if `jfrog` was selected — JFrog Artifactory handles Docker images and build artifacts instead.
+
+When `azure-devops` is selected but `jfrog` is NOT, ask the user which artifact repository to use:
+
+> **Question:** Which artifact repository will you use?
+> - Azure Artifacts (build output only — Pipeline Artifacts)
+> - Azure Container Registry (Docker images only)
+> - JFrog Artifactory (both — redirects to §0.5, sets `jfrog` to true)
+> - None (skip artifact publishing — e.g., library project with no deployable artifacts)
+
+Based on the selection, the artifact repository choice is recorded in `tool-selections.json` for the DevOps agent to use when generating `azure-pipelines.yml` during Step 6 (CI/CD). The pipeline file is NOT created during onboarding.
+- **Azure Artifacts**: `DeployToAzureArtifacts` (PublishPipelineArtifact only) + `VerifyAzureArtifacts` stages
+- **ACR**: `DeployToAzureArtifacts` (Docker build + push to ACR only) + `VerifyAzureArtifacts` stages
+- **JFrog**: `DeployToJFrog` + `VerifyJFrog` stages only (skip §0.9.4 entirely)
+- **None**: No deploy/verify stages — pipeline has Build stage only. Skip steps 1-6 below.
+
+1. Ask: ACR name (must be globally unique, alphanumeric only, 5-50 chars)
+2. Ask: Azure resource group name (must already exist)
+3. Ask: Create new ACR or use existing?
+   - **New:** Create ACR (PM Agent runs this via Bash):
+     ```bash
+     az acr create -n <ACR_NAME> -g <RESOURCE_GROUP> --sku Basic
+     ```
+   - **Existing:** Skip creation — verify only (step 4)
+4. Verify ACR exists:
+   ```bash
+   az acr show -n <ACR_NAME> --query loginServer -o tsv
+   ```
+   Expected output: `<ACR_NAME>.azurecr.io`
+5. Create two Azure DevOps service connections if not already configured (manual — via Azure DevOps UI: Project Settings → Service connections → New service connection):
+   - **"Azure Container Registry"** — type: Docker Registry → Azure Container Registry. Used by `Docker@2` task to build/push images.
+   - **"Azure Service Connection"** — type: Azure Resource Manager. Used by `AzureCLI@2` task to verify images in ACR via `az acr repository show`.
+6. Add `ACR_NAME` to the Azure DevOps variable group:
+   ```bash
+   az pipelines variable-group create --name "sdlc-vars" --variables ACR_NAME=<ACR_NAME> --project <AZURE_DEVOPS_PROJECT>
+   ```
+
+### Config Output (ACR)
+- `.env` -> `ACR_NAME`
+- Azure DevOps Service Connection: "Azure Container Registry" (Docker Registry type, for `Docker@2`)
+- Azure DevOps Service Connection: "Azure Service Connection" (Azure RM type, for `AzureCLI@2`)
+
+---
+
+## 0.10 - Azure Deployment Target Onboarding (if any Azure deploy target selected)
+
+> **Optional:** This section runs only if a deployment target was selected during
+> onboarding (Q1). If no target was selected, the user will be asked at Step 8
+> (deploy time) and this section runs inline then.
+
+> **Prerequisite:** `azure-devops` must be selected. ACR must be configured (§0.9.4) if `jfrog` NOT selected.
+> All steps executed by PM Agent via Bash using `az` CLI.
+
+### 0.10.0 Common Config
+1. Ask: Azure resource group name (must already exist)
+2. Ask: Azure location (e.g., `eastus`, `westeurope`)
+
+### 0.10.1 Azure App Service (if `azure-app-service` selected)
+> PaaS — Web Apps for Containers. Simplest Azure deployment. No SSH/VM management.
+1. Ask: App Service name (globally unique)
+2. Ask: App Service plan name
+3. Ask: Create new or use existing?
+   - **New:** Ask SKU (e.g., `B1` basic, `S1` standard, `P1` premium), then create (PM Agent runs via Bash):
+     ```bash
+     az appservice plan create --name <PLAN_NAME> --resource-group <RESOURCE_GROUP> --sku <SKU> --is-linux
+     az webapp create --name <APP_NAME> --resource-group <RESOURCE_GROUP> --plan <PLAN_NAME> --deployment-container-image-name <ACR_NAME>.azurecr.io/<REPO_NAME>:latest
+     ```
+   - **Existing:** Skip creation — verify with `az webapp show --name <APP_NAME> --resource-group <RESOURCE_GROUP>`
+
+### Config Output
+- `.env` -> `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_APP_SERVICE_NAME`, `AZURE_APP_SERVICE_PLAN`
+
+### 0.10.2 Azure Container Apps (if `azure-container-apps` selected)
+> Serverless containers — auto-scaling, KEDA-based. Good for microservices.
+1. Ask: Container Apps environment name
+2. Ask: Container app name
+3. Ask: Target port (e.g., `80`, `8080`)
+4. Ask: Create new or use existing?
+   - **New:** Create managed environment + container app (PM Agent runs via Bash):
+     ```bash
+     az containerapp env create --name <ENV_NAME> --resource-group <RESOURCE_GROUP> --location <LOCATION>
+     az containerapp create --name <APP_NAME> --resource-group <RESOURCE_GROUP> --environment <ENV_NAME> --image <ACR_NAME>.azurecr.io/<REPO_NAME>:latest --ingress external --target-port <PORT>
+     ```
+   - **Existing:** Skip creation — verify with `az containerapp show --name <APP_NAME> --resource-group <RESOURCE_GROUP>`
+   ```
+
+### Config Output
+- `.env` -> `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_CONTAINER_APP_NAME`, `AZURE_CONTAINER_APP_ENV`
+
+### 0.10.3 Azure Kubernetes Service (if `azure-aks` selected)
+> Full Kubernetes cluster — for complex multi-service deployments. AKS cluster must already exist.
+1. Ask: AKS cluster name (must already exist)
+2. Ask: Kubernetes namespace (e.g., `default`, `production`)
+3. Ask: Kubernetes deployment name
+4. Ask: Container name in deployment
+5. Get AKS credentials (PM Agent runs via Bash):
+   ```bash
+   az aks get-credentials --name <AKS_CLUSTER> --resource-group <RESOURCE_GROUP>
+   ```
+6. Verify cluster access:
+   ```bash
+   kubectl get nodes
+   ```
+
+### Config Output
+- `.env` -> `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_AKS_CLUSTER`, `AZURE_AKS_NAMESPACE`, `AZURE_AKS_DEPLOYMENT`, `AZURE_AKS_CONTAINER`
+
+### 0.10.4 Azure VM (if `azure-vm` selected)
+> IaaS — closest to Huawei ECS pattern (SSH + Docker pull + run). VM must already exist.
+1. Ask: VM name (must already exist)
+2. Ask: SSH username
+3. Ask: SSH key path (local path to private key)
+4. Get VM public IP (PM Agent runs via Bash):
+   ```bash
+   az vm show --name <VM_NAME> --resource-group <RESOURCE_GROUP> --show-details --query publicIps -o tsv
+   ```
+5. Verify SSH access:
+   ```bash
+   ssh -i <SSH_KEY_PATH> <USER>@<VM_IP> "echo connected"
+   ```
+6. Verify Docker installed on VM:
+   ```bash
+   ssh -i <SSH_KEY_PATH> <USER>@<VM_IP> "docker --version"
+   ```
+7. Configure Docker login to ACR on VM:
+   ```bash
+   ACR_PASSWORD=$(az acr credential show -n <ACR_NAME> --query passwords[0].value -o tsv)
+   ssh -i <SSH_KEY_PATH> <USER>@<VM_IP> "docker login <ACR_NAME>.azurecr.io -u <ACR_NAME> -p $ACR_PASSWORD"
+   ```
+
+### Config Output
+- `.env` -> `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_VM_NAME`, `AZURE_VM_USER`, `AZURE_VM_SSH_KEY_PATH`
 
 ---
 
@@ -161,6 +378,101 @@ After install, run `apply-tool-selections.ps1` (Windows) or `apply-tool-selectio
 
 ---
 
+## 0.11 - Figma Onboarding (if `figma` selected)
+
+> **EXCLUSIVE CONSUMER RULE:** Figma MCP (`figma.get_figma_data`,
+> `figma.download_figma_images`) is consumed **EXCLUSIVELY** by
+> `figma-design-agent` (`references/agents/figma-design-agent.md`). No other
+> agent (Architect, Backend, Frontend, Tester, Code Reviewer, DevOps) calls
+> Figma MCP directly — they read `figma-extract.md` and the SDD docs that
+> `figma-design-agent` produces.
+
+### 0.11.1 Collect User Input
+Ask via `question` tool:
+1. Figma personal access token (Figma -> Settings -> Personal Access Tokens)
+   - Required scope: `File content: read` (and optionally `Dev resources: read`
+     for Code Connect mappings)
+2. (Optional) Default Figma file URL — used as the starting point for
+   `figma-design-agent` invocations. Can be changed per-run.
+
+> **Security:** The token is held by the Figma MCP at runtime (via
+> `--figma-api-key=...`). It is NOT written to `mcp_settings.json` headers
+> nor to `.env` — Figma MCP injects it via its own CLI args.
+
+### 0.11.2 Configure `mcp_settings.json`
+Append the `figma` entry (see `references/templates/mcp-settings.json` and
+`references/config-reference.md` "MCP Servers Required"):
+
+```json
+"figma": {
+  "command": "npx",
+  "args": ["-y", "figma-developer-mcp", "--stdio", "--figma-api-key=<FIGMA_PERSONAL_ACCESS_TOKEN>"],
+  "disabled": false,
+  "timeout": 30000
+}
+```
+
+> **Note:** Placeholder `<FIGMA_PERSONAL_ACCESS_TOKEN>` is replaced by the
+> PM Agent after the user provides the token during onboarding. The MCP
+> server reads it from the `--figma-api-key` arg at startup.
+
+### 0.11.3 Auto-Provision `figma-design-agent`
+Step 0.0 already copies all `*-agent.md` files (including
+`figma-design-agent.md`) into `.codeartsdoer/agents/`. Verify:
+
+```bash
+ls .codeartsdoer/agents/figma-design-agent.md
+```
+
+The agent's `mcp_tools.figma: true` grants it access to the Figma MCP; all
+other agents have `mcp_tools.figma` absent or false (do not add it).
+
+### 0.11.4 Verify Figma MCP Connection
+1. Run a probe call from `figma-design-agent` (preferred) or via MCP
+   inspector:
+   ```bash
+   figma.get_figma_data(fileKey="<probe-file-key>")
+   ```
+   If the call returns Figma node tree data, onboarding is complete.
+2. If the call fails with `401 Unauthorized`:
+   - Re-check the personal access token (Settings -> Personal Access Tokens)
+   - Verify the token has `File content: read` scope
+   - Confirm `--figma-api-key` is set in `mcp_settings.json` args
+
+### 0.11.5 Smoke Test (Optional)
+User provides any Figma file URL (read access) for a sanity check.
+`figma-design-agent` runs `figma.get_figma_data` on it, confirms the
+extraction, and discards the probe result. If smoke test fails, abort
+onboarding and ask the user to fix the token before continuing.
+
+### Config Output
+- `mcp_settings.json` -> `figma` entry (command/args pattern, NOT headers)
+- `.codeartsdoer/agents/figma-design-agent.md` (auto-provisioned by Step 0.0)
+- No `.env` entry needed (token held by MCP server via CLI args)
+- No GitHub/Azure DevOps secret needed (token is local-MCP only)
+
+### Dependency Warnings
+| Selected | But NOT | Warning |
+|----------|---------|---------|
+| Figma | SDD (`sdd` or `openspec`) | Figma diff has no spec to compare against — disable Step 0.F |
+| Figma | GitHub and Azure DevOps | figma-extract.md has no PR/pipeline destination — push SDD docs only via `git push` |
+| Figma | Frontend agent | Figma-driven UI cannot be implemented — backend-only diff still useful |
+
+### Post-Onboarding
+After Step 0.11 succeeds, the pipeline is Figma-ready. The user invokes
+`figma-design-agent` separately (typically as a sub-agent invocation from
+`pm-agent` or directly via "compare figma <URL> against <spec-dir>") when:
+- A new Figma file is shared alongside an existing SDD directory
+- A design change needs to be validated against an approved spec
+- Onboarding flow hands off a Figma file + SDD package for diff review
+
+`figma-design-agent` produces `figma-extract.md` + updated SDD docs and hands
+off to `pm-agent`, which then runs the standard Step 1 → 9 pipeline. Steps
+0.DA (Architect), 3 (Frontend/Backend), and 5 (Tester) all read Figma data
+from these files — none call Figma MCP.
+
+---
+
 ## Config File Generation
 
 After all selected services are onboarded, generate config files from templates in `references/templates/`:
@@ -169,6 +481,7 @@ After all selected services are onboarded, generate config files from templates 
 |----------|-------------|
 | `mcp-settings.json` | Only selected MCP entries |
 | `ci-cd.yml` | Only selected stages; skip if GitHub not selected |
+
 | `sonar-project.properties` | Only if SonarCloud selected |
 | `env-template.env` | Only selected service blocks |
 | `set-secrets.js` | Run to set GitHub Actions secrets/variables |

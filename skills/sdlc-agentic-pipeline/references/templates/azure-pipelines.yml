@@ -1,0 +1,441 @@
+# Azure Pipelines CI/CD Template
+#
+# Flow: Build (incl. SonarCloud tasks) -> DeployArtifacts -> VerifyArtifacts
+#
+# Artifact backend (mutually exclusive — selected during onboarding §0.9.4):
+#   - Azure Artifacts:     deploy-to-azure-artifacts (PublishPipelineArtifact only) -> verify-azure-artifacts
+#   - ACR:                  deploy-to-azure-artifacts (Docker build + push to ACR only) -> verify-azure-artifacts
+#   - JFrog Artifactory:    deploy-to-jfrog -> verify-jfrog
+#   Only the relevant section is generated based on the user's onboarding choice.
+#
+# Stage order rationale (prevents resource waste and faulty code deployment):
+#   1. Build                - Install deps, verify code compiles + SonarCloud tasks (if selected)
+#   2a. DeployToJFrog       - Docker build + push to JFrog (if JFrog selected)
+#   2b. DeployToAzureArtifacts - Publish Pipeline Artifact or Docker push to ACR (if Azure Artifacts/ACR selected)
+#   3a. VerifyJFrog         - Verify artifact exists in JFrog
+#   3b. VerifyAzureArtifacts - Verify artifact exists in ACR / pipeline artifacts
+#
+# AUTO-TRIGGERED on push to dev branch. Also supports manual pipeline run.
+#
+# Required Azure DevOps variable groups (configure via azure-devops-cli skill,
+# references/variables-and-agents.md):
+#   Variable group "sdlc-vars" (non-secret):
+#     JFROG_PLATFORM_URL    - JFrog platform base URL (if JFrog selected)
+#     JFROG_DOCKER_REGISTRY - JFrog Docker registry hostname (if JFrog selected)
+#     JFROG_USERNAME        - JFrog user account (if JFrog selected)
+#     JFROG_PROJECT         - JFrog project key (if JFrog selected)
+#     JFROG_REPO_KEY        - JFrog Docker repository key (if JFrog selected)
+#     ACR_NAME              - Azure Container Registry name (if JFrog NOT selected)
+#     SONAR_PROJECT_KEY     - SonarCloud project key (if SonarCloud selected)
+#   Variable group "sdlc-secrets" (secret):
+#     SONAR_TOKEN           - SonarCloud authentication token (if SonarCloud selected)
+#     JFROG_PASSWORD        - JFrog password / access token (if JFrog selected)
+#
+# Required Azure DevOps service connections (configure in Project Settings -> Service connections):
+#   - "SonarCloud Service Connection" - SonarCloud service connection (if SonarCloud selected)
+#     Getting started: https://docs.sonarsource.com/sonarqube-cloud/getting-started/azure-devops
+#     Manual setup: https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/azure-pipelines/setting-up-project-integration
+#   - "JFrog Docker Registry"         - Docker Registry service connection to JFrog (if JFrog selected)
+#   - "Azure Container Registry"      - ACR service connection for Docker@2 push (if JFrog NOT selected, Azure DevOps selected)
+#   - "Azure Service Connection"      - Azure RM service connection for AzureCLI@2 verify (if JFrog NOT selected, Azure DevOps selected)
+#
+# NOTE: Secrets MUST be added via variable sub-command with --secret true
+#       (az pipelines variable-group variable create --secret true)
+#
+# Placeholders to replace per project:
+#   <REPO_NAME>        - repository name (AZURE_DEVOPS_REPO from .env)
+#   <SONAR_ORG_KEY>    - SonarCloud organization key (if SonarCloud selected)
+#   <SETUP_TASK>/<VERSION>, <INSTALL_COMMAND>, <BUILD_COMMAND> - generic build section
+#   Dockerfile path - defaults to root 'Dockerfile'. For multi-Dockerfile projects,
+#                      set Dockerfile to explicit path (e.g., 'backend/Dockerfile') and
+#                      adjust buildContext accordingly.
+#
+# =============================================================================
+# CONDITIONAL GENERATION (multi-tool-selection-plan.md §6.3):
+# This is a REFERENCE template. During onboarding, the generation logic reads
+# .codeartsdoer/tool-selections.json and includes ONLY stages for selected tools:
+#   - Build:                ALWAYS included (when Azure DevOps is selected)
+#   - SonarCloud tasks:     included in Build ONLY if SonarCloud (item 3) is selected
+#   - DeployToJFrog:        included ONLY if JFrog (item 5) is selected
+#   - VerifyJFrog:          included ONLY if JFrog (item 5) is selected
+#   - DeployToAzureArtifacts: included ONLY if Azure Artifacts or ACR selected (§0.9.4)
+#   - VerifyAzureArtifacts:   included ONLY if Azure Artifacts or ACR selected (§0.9.4)
+# If Azure DevOps (item 1) is NOT selected, do NOT generate azure-pipelines.yml.
+# Stage dependencies (dependsOn:) must be adjusted when stages are removed:
+#   - If SonarCloud tasks removed from Build stage: downstream stages still dependsOn: Build
+#   - If deploy stage removed: verify stage removed too (no artifact to verify)
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - dev
+
+pr:
+  branches:
+    include:
+      - dev
+
+variables:
+  - group: sdlc-vars
+  - group: sdlc-secrets
+  - name: REPO_NAME
+    value: <REPO_NAME>
+  - name: JF_BUILD_NAME
+    value: $(REPO_NAME)-build
+  - name: JF_BUILD_NUMBER
+    value: $(Build.BuildNumber)
+
+stages:
+  # --- ALWAYS INCLUDED (when Azure DevOps is selected) ---
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          # ============================================================
+          # GENERIC BUILD SECTION
+          # Replace the placeholder steps below with the setup + build
+          # commands for YOUR project (npm, mvn, gradle, dotnet, go,
+          # python, docker, etc.). This stage verifies code compiles
+          # and installs dependencies. Tests run in the next stage.
+          # ============================================================
+
+          - task: <SETUP_TASK>@<VERSION>
+            inputs:
+              versionSpec: '<VERSION>'
+            displayName: 'Set up build toolchain'
+
+          # ============================================================
+          # BUILD CACHE (uncomment the relevant cache for your stack)
+          # Cache@2 docs: https://learn.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops
+          # ============================================================
+          # --- Node.js cache (uncomment if Node.js project) ---
+          # - task: Cache@2
+          #   inputs:
+          #     key: 'npm | "$(Agent.OS)" | package-lock.json'
+          #     path: '$(Pipeline.Workspace)/npm'
+          #   displayName: 'Cache npm'
+
+          # --- Python cache (uncomment if Python project) ---
+          # - task: Cache@2
+          #   inputs:
+          #     key: 'pip | "$(Agent.OS)" | requirements.txt'
+          #     path: '~/.cache/pip'
+          #   displayName: 'Cache pip'
+
+          # --- Maven cache (uncomment if Java/Maven project) ---
+          # - task: Cache@2
+          #   inputs:
+          #     key: 'maven | "$(Agent.OS)" | pom.xml'
+          #     path: '~/.m2/repository'
+          #   displayName: 'Cache Maven'
+
+          # --- Gradle cache (uncomment if Java/Gradle project) ---
+          # - task: Cache@2
+          #   inputs:
+          #     key: 'gradle | "$(Agent.OS)" | build.gradle'
+          #     path: '~/.gradle/caches'
+          #   displayName: 'Cache Gradle'
+
+          # ============================================================
+          # CONDITIONAL: SonarCloud (item 3, `sonarcloud`)
+          # If NOT selected: remove all SonarCloud* tasks below.
+          # Downstream stages always dependsOn: Build.
+          #
+          # SonarCloud setup (one-time, manual in Azure DevOps UI):
+          #   1. Getting started:    https://docs.sonarsource.com/sonarqube-cloud/getting-started/azure-devops
+          #   2. Project integration: https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/azure-pipelines/setting-up-project-integration
+          #
+          # Task ordering (per official SonarSource docs):
+          #   JS/TS/.NET/Python: SonarCloudPrepare@4 → Install → Build → Test → SonarCloudAnalyze@4 → SonarCloudPublish@4
+          #   Maven/Gradle:      SonarCloudPrepare@4 → Install → Build+Analyze (sonar:sonar / sonarqube) → SonarCloudPublish@4
+          # ============================================================
+
+          # --- SonarCloudPrepare@4: MUST run BEFORE build (choose ONE option, delete others) ---
+
+          # --- Option A: JavaScript / TypeScript / Web (scannerMode: CLI) ---
+          - task: SonarCloudPrepare@4
+            inputs:
+              SonarCloud: 'SonarCloud Service Connection'
+              organization: '<SONAR_ORG_KEY>'
+              scannerMode: 'CLI'
+              configMode: 'manual'
+              cliProjectKey: '$(SONAR_PROJECT_KEY)'
+              cliProjectName: '$(REPO_NAME)'
+              cliSources: '.'
+              extraProperties: |
+                sonar.qualitygate.wait=true
+                sonar.javascript.lcov.reportPaths=coverage/lcov.info
+                sonar.typescript.lcov.reportPaths=coverage/lcov.info
+
+          # --- Option B: .NET / C# (scannerMode: MSBuild) ---
+          # - task: SonarCloudPrepare@4
+          #   inputs:
+          #     SonarCloud: 'SonarCloud Service Connection'
+          #     organization: '<SONAR_ORG_KEY>'
+          #     scannerMode: 'MSBuild'
+          #     projectKey: '$(SONAR_PROJECT_KEY)'
+          #     projectName: '$(REPO_NAME)'
+          #     extraProperties: |
+          #       sonar.cs.opencover.reportsPaths=**/coverage.opencover.xml
+          #       sonar.qualitygate.wait=true
+
+          # --- Option C: Maven (scannerMode: other) ---
+          # - task: SonarCloudPrepare@4
+          #   inputs:
+          #     SonarCloud: 'SonarCloud Service Connection'
+          #     organization: '<SONAR_ORG_KEY>'
+          #     scannerMode: 'other'
+          #     extraProperties: |
+          #       sonar.projectKey=$(SONAR_PROJECT_KEY)
+          #       sonar.projectName=$(REPO_NAME)
+          #       sonar.qualitygate.wait=true
+          #   env:
+          #     SONAR_TOKEN: $(SONAR_TOKEN)
+
+          # --- Option D: Gradle (scannerMode: other) ---
+          # - task: SonarCloudPrepare@4
+          #   inputs:
+          #     SonarCloud: 'SonarCloud Service Connection'
+          #     organization: '<SONAR_ORG_KEY>'
+          #     scannerMode: 'other'
+          #     extraProperties: |
+          #       sonar.projectKey=$(SONAR_PROJECT_KEY)
+          #       sonar.projectName=$(REPO_NAME)
+          #       sonar.qualitygate.wait=true
+          #   env:
+          #     SONAR_TOKEN: $(SONAR_TOKEN)
+
+          # --- Option E: Python / Other (scannerMode: CLI) ---
+          # - task: SonarCloudPrepare@4
+          #   inputs:
+          #     SonarCloud: 'SonarCloud Service Connection'
+          #     organization: '<SONAR_ORG_KEY>'
+          #     scannerMode: 'CLI'
+          #     configMode: 'manual'
+          #     cliProjectKey: '$(SONAR_PROJECT_KEY)'
+          #     cliProjectName: '$(REPO_NAME)'
+          #     cliSources: '.'
+          #     extraProperties: |
+          #       sonar.python.coverage.reportPaths=coverage.xml
+          #       sonar.qualitygate.wait=true
+
+          - script: <INSTALL_COMMAND>
+            displayName: 'Install dependencies'
+
+          # ============================================================
+          # BUILD + SONAR ANALYSIS
+          # For JS/TS/.NET/Python: use separate Build then SonarCloudAnalyze@4
+          # For Maven/Gradle: SonarQube runs INSIDE the build (no Analyze task)
+          # ============================================================
+
+          # --- Option A-D (JS/TS, .NET, Python, Other): standard build ---
+          - script: <BUILD_COMMAND>
+            displayName: 'Build project'
+
+          - script: <TEST_COVERAGE_COMMAND>
+            displayName: 'Run tests with coverage'
+
+          # --- SonarCloudAnalyze@4: ONLY for JS/TS, .NET, Python, Other ---
+          # (Maven/Gradle skip this — scanner runs inside the build)
+          - task: SonarCloudAnalyze@4
+
+          # --- Maven: build + analyze in one step (tick SonarQube in Maven task) ---
+          # Replace <BUILD_COMMAND> above with: mvn sonar:sonar
+          # Or use the Maven@4 task with sonarQubeRunAnalysis: true
+
+          # --- Gradle: build + analyze in one step (tick SonarQube in Gradle task) ---
+          # Replace <BUILD_COMMAND> above with: ./gradlew sonarqube
+          # Or use the Gradle@4 task with sonarQubeRunAnalysis: true
+
+          - task: SonarCloudPublish@4
+            inputs:
+              pollingTimeoutSec: '300'
+
+  # --- CONDITIONAL: JFrog Artifactory (onboarding §0.9.4 choice) ---
+  # Generated ONLY if user selected "JFrog Artifactory" as artifact repository.
+  # If not selected: this stage + verify-jfrog are omitted entirely.
+  - stage: DeployToJFrog
+    dependsOn: Build
+    jobs:
+      - job: DeployJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - script: |
+              curl -fL https://getcli.jfrog.io | sh
+              ./jfrog config add jfrog \
+                --url="$(JFROG_PLATFORM_URL)" \
+                --user="$(JFROG_USERNAME)" \
+                --password="$(JFROG_PASSWORD)" \
+                --interactive=false
+              ./jfrog config use jfrog
+            displayName: 'Setup & Configure JFrog CLI'
+
+          - script: |
+              ./jfrog rt build-add-git \
+                "$(JF_BUILD_NAME)" \
+                "$(JF_BUILD_NUMBER)" \
+                --project="$(JFROG_PROJECT)" .
+            displayName: 'Add Git Info to Build'
+
+          - task: Docker@2
+            displayName: 'Docker Login'
+            inputs:
+              containerRegistry: 'JFrog Docker Registry'
+              command: 'login'
+
+          - task: Docker@2
+            displayName: 'Build and Push Docker Image'
+            inputs:
+              containerRegistry: 'JFrog Docker Registry'
+              repository: '$(JFROG_REPO_KEY)/$(REPO_NAME)'
+              command: 'buildAndPush'
+              Dockerfile: 'Dockerfile'
+              buildContext: '.'
+              tags: |
+                $(Build.SourceVersion)
+                latest
+
+          - script: |
+              echo "RELEASE_IMAGE=$(JFROG_DOCKER_REGISTRY)/$(JFROG_REPO_KEY)/$(REPO_NAME):$(Build.SourceVersion)"
+              echo "Deployable image: $(JFROG_DOCKER_REGISTRY)/$(JFROG_REPO_KEY)/$(REPO_NAME):$(Build.SourceVersion)"
+            displayName: 'Publish image info'
+
+          - script: |
+              ./jfrog rt build-publish \
+                "$(JF_BUILD_NAME)" \
+                "$(JF_BUILD_NUMBER)" \
+                --project="$(JFROG_PROJECT)"
+            displayName: 'Publish Build Info'
+
+  # --- CONDITIONAL: JFrog (item 5, `jfrog`) - remove stage if not selected ---
+  - stage: VerifyJFrog
+    dependsOn: DeployToJFrog
+    jobs:
+      - job: VerifyJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - script: |
+              PLATFORM_URL="$(JFROG_PLATFORM_URL)"
+              PLATFORM_URL="${PLATFORM_URL%/}"
+              IMAGE_URL="$(JFROG_DOCKER_REGISTRY)/$(JFROG_REPO_KEY)/$(REPO_NAME):latest"
+              echo "Verifying image at: ${PLATFORM_URL}/artifactory/api/docker/$(JFROG_REPO_KEY)/v2/$(REPO_NAME)/manifests/latest"
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                -u "$(JFROG_USERNAME):$(JFROG_PASSWORD)" \
+                "${PLATFORM_URL}/artifactory/api/docker/$(JFROG_REPO_KEY)/v2/$(REPO_NAME)/manifests/latest")
+              if [ "$HTTP_CODE" != "200" ]; then
+                echo "ERROR: Docker image not found in JFrog (HTTP $HTTP_CODE)"
+                exit 1
+              fi
+              echo "JFrog artifact verified: $IMAGE_URL"
+            displayName: 'Verify Docker image in JFrog'
+
+  # --- CONDITIONAL: Azure Artifacts / ACR (onboarding §0.9.4 choice) ---
+  # Generated if user selected "Azure Artifacts" or "ACR" as artifact repository.
+  # - Azure Artifacts: keep PublishPipelineArtifact, remove Docker tasks
+  # - ACR: keep Docker tasks, remove PublishPipelineArtifact
+  # Azure Artifacts docs: https://learn.microsoft.com/en-us/azure/devops/pipelines/artifacts/artifacts-overview
+  - stage: DeployToAzureArtifacts
+    dependsOn: Build
+    jobs:
+      - job: DeployAzureJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          # --- Azure Artifacts: Publish build output (remove if ACR selected) ---
+          # Common <ARTIFACT_OUTPUT_PATH> values per project type:
+          #   Node.js:             $(Build.SourcesDirectory)/dist
+          #   React (Vite):        $(Build.SourcesDirectory)/dist
+          #   React (CRA):         $(Build.SourcesDirectory)/build
+          #   Angular:             $(Build.SourcesDirectory)/dist/<project-name>
+          #   .NET:                $(Build.ArtifactStagingDirectory)/publish
+          #   Java (Maven):        $(Build.SourcesDirectory)/target
+          #   Java (Gradle):       $(Build.SourcesDirectory)/build/libs
+          #   Python:              $(Build.SourcesDirectory)/dist
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '<ARTIFACT_OUTPUT_PATH>'
+              artifact: '$(REPO_NAME)-build'
+              publishLocation: 'pipeline'
+            displayName: 'Publish pipeline artifact'
+
+          # --- ACR: Build and push Docker image (remove if Azure Artifacts selected) ---
+          - task: Docker@2
+            displayName: 'Docker Login to ACR'
+            inputs:
+              containerRegistry: 'Azure Container Registry'
+              command: 'login'
+
+          - task: Docker@2
+            displayName: 'Build and Push Docker Image to ACR'
+            inputs:
+              containerRegistry: 'Azure Container Registry'
+              repository: '$(REPO_NAME)'
+              command: 'buildAndPush'
+              Dockerfile: 'Dockerfile'
+              buildContext: '.'
+              tags: |
+                $(Build.SourceVersion)
+                latest
+
+          - script: |
+              echo "RELEASE_IMAGE=$(ACR_NAME).azurecr.io/$(REPO_NAME):$(Build.SourceVersion)"
+              echo "Deployable image: $(ACR_NAME).azurecr.io/$(REPO_NAME):$(Build.SourceVersion)"
+            displayName: 'Publish image info'
+
+  # --- CONDITIONAL: Azure Artifacts / ACR (onboarding §0.9.4 choice) ---
+  # Generated if user selected "Azure Artifacts" or "ACR" as artifact repository.
+  # - Azure Artifacts: keep pipeline artifact verify, remove ACR verify
+  # - ACR: keep ACR verify, remove pipeline artifact verify
+  - stage: VerifyAzureArtifacts
+    dependsOn: DeployToAzureArtifacts
+    jobs:
+      - job: VerifyAzureJob
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          # --- Azure Artifacts: Verify pipeline artifact (remove if ACR selected) ---
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifact: '$(REPO_NAME)-build'
+              path: '$(Pipeline.Workspace)/artifact'
+            displayName: 'Download pipeline artifact'
+
+          - script: |
+              if [ -d "$(Pipeline.Workspace)/artifact" ]; then
+                echo "Pipeline artifact verified: $(REPO_NAME)-build"
+              else
+                echo "ERROR: Pipeline artifact not found"
+                exit 1
+              fi
+            displayName: 'Verify pipeline artifact'
+
+          # --- ACR: Verify Docker image (remove if Azure Artifacts selected) ---
+          # Uses AzureCLI@2 task for Azure authentication (requires "Azure Service Connection")
+          - task: AzureCLI@2
+            displayName: 'Verify Docker image in ACR'
+            inputs:
+              azureSubscription: 'Azure Service Connection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                IMAGE_URL="$(ACR_NAME).azurecr.io/$(REPO_NAME):latest"
+                echo "Verifying image at: ${IMAGE_URL}"
+                az acr repository show --name $(ACR_NAME) --image $(REPO_NAME):latest --query name -o tsv
+                if [ $? -eq 0 ]; then
+                  echo "ACR Docker image verified: $IMAGE_URL"
+                else
+                  echo "ERROR: Docker image not found in ACR"
+                  exit 1
+                fi
