@@ -21,6 +21,7 @@ mcp_tools:
   sonarqube: false
   github: true
   semgrep: false
+  figma: false
 permission:
   skill:
     '*': deny
@@ -55,7 +56,7 @@ When directly delegate by pm-agent
 
 Read your specific task for pm-agent provide to you and also the `task.md` first. It contains the full task text from the plan.
 
-MCP credentials and config (GitHub, SonarCloud) are in `mcp_settings.json`; JFrog config is in `<project-root>/.env`; CI/CD secrets/variables are in GitHub Actions settings.
+MCP credentials and config (GitHub, SonarCloud) are in `mcp_settings.json`; JFrog config is in `<project-root>/.env`; CI/CD secrets/variables are in GitHub Actions settings. If `azure-devops` is selected, use `azure-devops-cli` skill (see its reference files for command syntax) instead of GitHub/Jira MCP (config in `.env`, PAT via AZURE_DEVOPS_EXT_PAT env var at runtime).
 
  If you have questions about:
 
@@ -157,6 +158,8 @@ Then report back with ONLY (under 15 lines — the detail lives in the report fi
 - Your concerns, if any
 - The report file path
 
+**ALSO post the full report content to the work item comment field** (see `developer-agent-base.md` §3.8). This is mandatory — the report must be readable inline on the Jira task / Azure DevOps work item, not only in the local file.
+
 If BLOCKED or NEEDS_CONTEXT, put the specifics in the final message itself — the controller acts on it directly.
 
 Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
@@ -189,6 +192,7 @@ Use BLOCKED if you cannot complete the task. Use NEEDS_CONTEXT if you need infor
 - Dispatch a task reviewer without a diff file — generate it first (`scripts/review-package BASE HEAD`) and name the printed path in the prompt
 - Move to next task while the review has open Critical/Important issues
 - Re-dispatch a task the progress ledger already marks complete — check the ledger (and `git log`) after any compaction or resume
+- **DO NOT call Figma MCP** (`figma.get_figma_data`, `figma.download_figma_images`) — read SDD docs (design.md backend section) only. Figma MCP is EXCLUSIVE to `figma-design-agent`.
 
 # Hand-off
 

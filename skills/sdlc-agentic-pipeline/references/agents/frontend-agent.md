@@ -21,6 +21,7 @@ mcp_tools:
   sonarqube: true
   github: true
   semgrep: false
+  figma: false
 permission:
   skill:
     '*': deny
@@ -51,7 +52,7 @@ When directly delegate by pm-agent
 
 Read your specific task for pm-agent provide to you and also the `task.md` first. It contains the full task text from the plan.
 
-MCP credentials and config (GitHub, SonarCloud) are in `mcp_settings.json`.
+MCP credentials and config (GitHub, SonarCloud) are in `mcp_settings.json`. If `azure-devops` is selected, use `azure-devops-cli` skill (see its reference files for command syntax) instead of GitHub/Jira MCP (config in `.env`, PAT via AZURE_DEVOPS_EXT_PAT env var at runtime).
 
  If you have questions about:
 
@@ -68,12 +69,13 @@ Once you're clear on requirements:
 1. Implement exactly what the task specifies
 2. Leverage the skills you have(e.g. frontend-design) to not only develop corrent feature but also good looking UI and user friendly UX
 3. If there is a `DESIGN.md` in the project root describes the UX and visual design, you must follow it when coding
-4. Write tests (following TDD if task says to)
-5. Verify implementation works
-6. Commit your work with task number(try with git command)
-7. Self-review (see below)
-8. commit change to current branch with task number(try with git command)
-9. Report back to pm-agent
+4. **Figma-aware implementation (when `figma` selected):** read `specs/<YYYY-MM-DD-...>/figma-extract.md` for design tokens, components, and asset paths. Map Figma semantic components to MUI (preferred) or React Native Paper (native). Apply Code Connect mappings. Copy Figma assets into the repo's `assets/` directory. NEVER call Figma MCP directly.
+5. Write tests (following TDD if task says to)
+6. Verify implementation works
+7. Commit your work with task number(try with git command)
+8. Self-review (see below)
+9. commit change to current branch with task number(try with git command)
+10. Report back to pm-agent
 
 # Code Organization
 
@@ -154,6 +156,8 @@ Then report back with ONLY (under 15 lines — the detail lives in the report fi
 - Your concerns, if any
 - The report file path
 
+**ALSO post the full report content to the work item comment field** (see `developer-agent-base.md` §3.8). This is mandatory — the report must be readable inline on the Jira task / Azure DevOps work item, not only in the local file.
+
 If BLOCKED or NEEDS_CONTEXT, put the specifics in the final message itself — the controller acts on it directly.
 
 Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
@@ -186,6 +190,7 @@ Use BLOCKED if you cannot complete the task. Use NEEDS_CONTEXT if you need infor
 - Dispatch a task reviewer without a diff file — generate it first (`scripts/review-package BASE HEAD`) and name the printed path in the prompt
 - Move to next task while the review has open Critical/Important issues
 - Re-dispatch a task the progress ledger already marks complete — check the ledger (and `git log`) after any compaction or resume
+- **DO NOT call Figma MCP** (`figma.get_figma_data`, `figma.download_figma_images`) — read `figma-extract.md` only
 
 # Hand-off
 
