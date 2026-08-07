@@ -7,7 +7,8 @@
       "sonarqube": "sonarcloud (item 3)",
       "semgrep": "semgrep (item 4)",
       "terraform": "huawei-ecs (item 6, Option B only)",
-      "postman": "postman (item 3, TDD Q3)"
+      "postman": "postman (item 3, TDD Q3)",
+      "figma": "figma (item 12, design-to-code — exclusive to figma-design-agent)"
     }
   },
   "mcpServers": {
@@ -64,6 +65,12 @@
         "Authorization": "Bearer <POSTMAN_API_KEY>"
       },
       "disabled": false
+    },
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "figma-developer-mcp", "--stdio", "--figma-api-key=<FIGMA_PERSONAL_ACCESS_TOKEN>"],
+      "disabled": false,
+      "timeout": 30000
     }
   }
 }
