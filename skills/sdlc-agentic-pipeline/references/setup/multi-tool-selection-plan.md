@@ -36,7 +36,7 @@ File: `.codeartsdoer/tool-selections.json`
 
 **Q1 — MCP Servers & Services**: GitHub, Jira, SonarCloud, Semgrep, JFrog Artifactory, Huawei Cloud ECS, None
 **Q2 — SDD**: SDD Toolkit (Huawei Built-in), OpenSpec (coming soon), None
-**Q3 — TDD**: Playwright CLI (E2E), Postman (API), Newman (API), Jest (Unit JS/TS), Pytest (Unit Python), JUnit (Unit Java), Vitest (Unit JS/TS Vite), None
+**Q3 — TDD**: Playwright CLI (E2E browser testing), Postman (Interactive API testing via MCP), Newman (CLI collection runner for CI/CD — auto-selected with Postman), Jest (Unit testing JS/TS), Pytest (Unit testing Python), JUnit (Unit testing Java), Vitest (Unit testing JS/TS Vite), None (Skip TDD)
 **Q4 — DDD**: Context Mapper, EventStorming, Structurizr, None
 
 ### Selection Rules
@@ -45,9 +45,10 @@ File: `.codeartsdoer/tool-selections.json`
 3. Non-contiguous selection valid
 4. "None" takes precedence if selected alongside other items
 5. Built-in utility skills never mentioned
+6. **Auto-select (post-processing)**: After Q3 returns, if Postman is selected but Newman is NOT, the PM Agent automatically adds Newman to the selections before writing `tool-selections.json`. Newman's option label is "(auto-selected with Postman)" so users know it will be included. The user sees Newman in the post-selection summary as "(auto-selected via Postman)" and can confirm or reject.
 
 ### Post-Selection Summary
-Print selected/skipped items, pipeline impact, and dependency warnings. Ask: "Proceed with these selections?" (Yes/No).
+Print selected/skipped items (including auto-selected Newman if Postman chosen), pipeline impact, and dependency warnings. Ask: "Proceed with these selections?" (Yes/No).
 
 ---
 
@@ -60,7 +61,7 @@ Print selected/skipped items, pipeline impact, and dependency warnings. Ask: "Pr
 | JFrog | Huawei ECS | Deployment has no image source |
 | Huawei ECS | JFrog | No Docker image to deploy |
 | Playwright | GitHub | E2E tests run against local working directory only |
-| Postman | Newman | Postman monitors can't reach localhost APIs |
+
 | DDD tools | SDD | Domain model used directly without formal spec |
 | Any TDD tool | GitHub | Tests not version-controlled via PRs |
 

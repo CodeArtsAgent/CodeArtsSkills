@@ -57,6 +57,8 @@ Ready-to-fill templates are in `references/templates/`:
 | `github` | Repos, branches, PRs, reviews, workflow dispatch | Bearer PAT | `GITHUB_OWNER`, `GITHUB_REPO` |
 | `sonarqube` | Quality gate, issues, coverage, hotspots | Bearer token | `SONAR_PROJECT_KEY` |
 | `semgrep` | Local static analysis, security scanning | App token env | — |
+| `terraform` | Infrastructure as Code (ECS provisioning, Option B) | — | — |
+| `postman` | API testing, collection runs | Bearer API key (HTTP) | — |
 
 JFrog is configured as a service (REST API) in `<project-root>/.env` + GitHub Actions secrets/variables,
 not as an MCP server. ECS config is also in `<project-root>/.env`.

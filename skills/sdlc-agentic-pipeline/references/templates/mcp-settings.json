@@ -6,7 +6,8 @@
       "github": "github (item 1)",
       "sonarqube": "sonarcloud (item 3)",
       "semgrep": "semgrep (item 4)",
-      "terraform": "huawei-ecs (item 6, Option B only)"
+      "terraform": "huawei-ecs (item 6, Option B only)",
+      "postman": "postman (item 3, TDD Q3)"
     }
   },
   "mcpServers": {
@@ -55,6 +56,14 @@
       "args": ["stdio"],
       "disabled": false,
       "timeout": 120000
+    },
+    "postman": {
+      "type": "http",
+      "url": "https://mcp.postman.com/mcp",
+      "headers": {
+        "Authorization": "Bearer <POSTMAN_API_KEY>"
+      },
+      "disabled": false
     }
   }
 }
