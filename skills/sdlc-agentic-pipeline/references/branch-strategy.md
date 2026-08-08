@@ -67,8 +67,8 @@ via GitHub MCP. This is the only way code reaches `main`. Deployment
 A feature/fix/bug PR may only be merged into `dev` when ALL of the following
 are satisfied:
 
-1. Code Reviewer Agent sign-off comment exists on Jira task
-2. Tester Agent E2E sign-off comment exists on Jira task
+1. Code Reviewer Agent sign-off comment exists on the Task (Sub-task)
+2. Tester Agent E2E sign-off comment exists on the Task (Sub-task)
 3. Human approval (via PM Agent question tool)
 
 > **NOTE:** CI green and SonarCloud QG are **NOT** required at this stage.
@@ -89,12 +89,28 @@ satisfied:
 1. All feature PRs have been merged into `dev`
 2. Integration CI/CD passed on `dev` branch
 3. SonarCloud Quality Gate passes on `dev`
-4. All Jira tasks have Code Reviewer + Tester sign-off
+4. All Task-level work items have Code Reviewer + Tester sign-off
 5. Human approval (via PM Agent question tool)
 
 ---
 
-## Jira Status Lifecycle
+## Status Lifecycle (Task-level items only)
+
+Only Tasks transition through the SDLC lifecycle. Issues and the Epic stay in their initial status and are closed at sprint close.
+
+### State Mapping
+
+> Azure DevOps Tasks have no "Resolved" state — keep "Active"/"Doing" for In Review/In Testing, use `@agent:` comments to mark phase.
+
+| SDLC State | Jira | Azure DevOps Agile (Task) | Azure DevOps Basic (Task) |
+|------------|------|---------------------------|---------------------------|
+| To Do | To Do | New | To Do |
+| In Progress | In Progress | Active | Doing |
+| In Review | In Review | Active (comment marks review) | Doing (comment marks review) |
+| In Testing | In Testing | Active (comment marks testing) | Doing (comment marks testing) |
+| Done | Done | Closed | Done |
+
+### Lifecycle Diagram
 
 ```
   To Do ---> In Progress ---> In Review ---> In Testing ---> Done
@@ -116,16 +132,18 @@ satisfied:
 
 ## Agent Routing Labels
 
-Jira labels (NOT assignee) route tasks to the correct agent:
+Routing labels apply at **Task level only** (Jira Sub-tasks, Azure DevOps Tasks). Issues and Epics do NOT carry routing labels.
 
-| Label | Routes To |
-|-------|-----------|
+| Label/Tag | Routes To |
+|-----------|-----------|
 | `agent:frontend` | Frontend Agent |
 | `agent:backend` | Backend Agent |
 | `agent:code-reviewer` | Code Reviewer Agent |
 | `agent:devops` | DevOps Agent |
 | `agent:tester` | Tester Agent |
 | `agent:pm` | PM Agent |
+
+Jira: applied as labels. Azure DevOps: applied as tags via `az boards work-item update --id <id> --fields "System.Tags=agent:frontend"`.
 
 **Domain labels:** `frontend` `backend` `bug` `test` `security` `devops`
 `release` `documentation` `feature` `refactor`
@@ -134,8 +152,10 @@ Jira labels (NOT assignee) route tasks to the correct agent:
 
 ## Inter-Agent Messaging
 
-All inter-agent communication happens via **Jira comments** using this format:
+All inter-agent communication happens via **work item comments on Task-level items**. There are two types of comments:
 
+### 1. Routing/Status Comments (short, one-line)
+Used to trigger the next agent or signal a status change:
 ```
 @agent:<target-agent> <message>
 ```
@@ -145,18 +165,55 @@ Examples:
 - `@agent:code-reviewer PR #42 ready for review - backend implementation complete`
 - `@agent:devops E2E sign-off complete - all tests passing, ready for CI/CD`
 
+### 2. Report Content Comments (full, multi-line)
+After completing work, agents MUST post their full report content to the work item comment field. This is separate from the routing comment above. The report comment provides the evidence trail inline on the work item.
+
+Format:
+```
+@agent:pm <Report Type> — <Task-ID> <Task Name>
+
+Verdict/Status: <DONE | APPROVED | PASS | FAIL | ...>
+
+## <Report sections: implementation, test results, findings, etc.>
+
+Report file: <local file path>
+```
+
+Each agent posts:
+- **Backend/Frontend**: Implementation report (what was built, test results, TDD evidence, files changed, self-review) — see `developer-agent-base.md` §3.8
+- **Code Reviewer**: Review report (verdict, CRITICAL/WARNING findings, file/line refs, recommendations) — see `code-reviewer-agent.md` Hands-off
+- **Tester**: Test report (pass/fail counts, trace evidence, failure details, environment) — see `tester-agent.md` Hand-off
+- **DevOps**: CI/CD report (build status, quality gate, artifacts, deployment status) — see `devops-agent.md` §7.9
+
 ---
 
-## Task Discovery (JQL)
+## Task Discovery
+
+Only **Task-level items** carry routing labels and are queried by agents.
+
+### Jira (JQL)
 
 | Agent | JQL |
 |-------|-----|
-| Frontend | `labels = agent:frontend AND status = "To Do"` |
-| Backend | `labels = agent:backend AND status = "To Do"` |
-| Code Reviewer | `labels = agent:code-reviewer AND status = "In Review"` |
-| Tester | `labels = agent:tester AND status = "In Review"` |
-| DevOps | `labels = agent:devops AND status = "In Review"` |
-| PM | `labels = agent:pm AND status = "To Do"` |
+| Frontend | `labels = agent:frontend AND status = "To Do" AND issuetype = Sub-task` |
+| Backend | `labels = agent:backend AND status = "To Do" AND issuetype = Sub-task` |
+| Code Reviewer | `labels = agent:code-reviewer AND status = "In Review" AND issuetype = Sub-task` |
+| Tester | `labels = agent:tester AND status = "In Review" AND issuetype = Sub-task` |
+| DevOps | `labels = agent:devops AND status = "In Review" AND issuetype = Sub-task` |
+| PM | `labels = agent:pm AND status = "To Do" AND issuetype = Sub-task` |
+
+### Azure DevOps (WIQL)
+
+Pattern: `SELECT [System.Id] FROM WorkItems WHERE [System.Tags] CONTAINS 'agent:<name>' AND [System.State] = '<state>' AND [System.WorkItemType] = 'Task'`
+
+| Agent | Azure DevOps State |
+|-------|-------------------|
+| Frontend | New |
+| Backend | New |
+| Code Reviewer | Active (Agile) or Doing (Basic — check comments for review phase) |
+| Tester | Active (Agile) or Doing (Basic — check comments for testing phase) |
+| DevOps | Active (Agile) or Doing (Basic — check comments for CI/CD phase) |
+| PM | New |
 
 ---
 

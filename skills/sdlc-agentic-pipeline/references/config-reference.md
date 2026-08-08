@@ -13,8 +13,9 @@ Ready-to-fill templates are in `references/templates/`:
 |----------|-------------|
 | `mcp-settings.json` | MCP server configuration with `env` blocks for non-secret identifiers (conditional: only selected MCP entries included) |
 | `ci-cd.yml` | GitHub Actions workflow template (conditional: only selected stages included; not generated if GitHub not selected) |
+| `azure-pipelines.yml` | Azure Pipelines workflow template (NOT generated during onboarding — DevOps agent creates it during Step 6 based on project structure + artifact repo selection). Artifact backend: JFrog (if selected) or Azure Artifacts/ACR (if JFrog NOT selected) |
 | `sonar-project.properties` | SonarCloud project configuration (only if SonarCloud selected) |
-| `env-template.env` | Environment variables — JFrog + ECS config only (MCP service config lives in mcp_settings.json) |
+| `env-template.env` | Environment variables — JFrog + ECS + Azure DevOps + ACR config (MCP service config lives in mcp_settings.json) |
 | `set-secrets.js` | GitHub Actions secrets/variables setup script (conditional: only selected service secrets/vars) |
 | `add_ssh_key.py` | Python script to add SSH public key to Huawei Cloud ECS for key-based authentication |
 | `apply-tool-selections.ps1` | Windows: updates agent `permission.skill` blocks based on `tool-selections.json` + `skill-registry.json` (methodology skills only, never touches built-in) |
@@ -59,6 +60,43 @@ Ready-to-fill templates are in `references/templates/`:
 | `semgrep` | Local static analysis, security scanning | App token env | — |
 | `terraform` | Infrastructure as Code (ECS provisioning, Option B) | — | — |
 | `postman` | API testing, collection runs | Bearer API key (HTTP) | — |
+| `figma` | Design-to-code (Figma MCP) | Personal access token (CLI arg `--figma-api-key`) | — |
 
 JFrog is configured as a service (REST API) in `<project-root>/.env` + GitHub Actions secrets/variables,
 not as an MCP server. ECS config is also in `<project-root>/.env`.
+
+**Figma MCP entry** (command/args pattern, NOT URL/headers):
+
+```json
+"figma": {
+  "command": "npx",
+  "args": ["-y", "figma-developer-mcp", "--stdio", "--figma-api-key=<FIGMA_PERSONAL_ACCESS_TOKEN>"],
+  "disabled": false,
+  "timeout": 30000
+}
+```
+
+The Figma personal access token is held by the MCP server via CLI args
+(never written to headers, env, or `.env`). Scope: `File content: read`
+(optional: `Dev resources: read` for Code Connect). Figma MCP is consumed
+EXCLUSIVELY by `figma-design-agent`; all other agents read
+`specs/<YYYY-MM-DD-...>/figma-extract.md` and the SDD docs that
+`figma-design-agent` updates.
+
+Azure DevOps is configured as a CLI tool (not MCP) — org URL, project, and repo name in `<project-root>/.env`,
+PAT via `AZURE_DEVOPS_EXT_PAT` env var at runtime (non-interactive, not persisted). Mutually exclusive with GitHub + Jira. The `azure-devops-cli`
+skill (installed from `github/awesome-copilot`) provides reference files
+for Azure Repos, Boards, and Pipelines CLI command patterns for agents.
+
+**Azure Artifacts/ACR** (conditional: only when `jfrog` NOT selected and `azure-devops` selected):
+- Azure Container Registry (ACR) replaces JFrog Docker registry — `ACR_NAME` in `<project-root>/.env`, login server is `<ACR_NAME>.azurecr.io`
+- Azure Pipeline Artifacts replace JFrog build artifacts — managed via `PublishPipelineArtifact@1` / `DownloadPipelineArtifact@2` tasks in `azure-pipelines.yml`
+- ACR is created via `az acr create -n <ACR_NAME> -g <RESOURCE_GROUP> --sku Basic` (see `service-onboarding.md` §0.9.4)
+- Docker images pushed to ACR via `Docker@2` task with `containerRegistry: $(ACR_NAME).azurecr.io`
+
+**Azure Deployment Targets** (conditional: only selected targets, requires `azure-devops`):
+- **Azure App Service** (`azure-app-service`): PaaS Web Apps for Containers. Deploy via `az webapp config container set`. Config: `AZURE_APP_SERVICE_NAME`, `AZURE_APP_SERVICE_PLAN` in `.env`.
+- **Azure Container Apps** (`azure-container-apps`): Serverless containers. Deploy via `az containerapp update`. Config: `AZURE_CONTAINER_APP_NAME`, `AZURE_CONTAINER_APP_ENV` in `.env`.
+- **Azure Kubernetes Service** (`azure-aks`): Full K8s. Deploy via `kubectl set image`. Config: `AZURE_AKS_CLUSTER`, `AZURE_AKS_NAMESPACE`, `AZURE_AKS_DEPLOYMENT`, `AZURE_AKS_CONTAINER` in `.env`.
+- **Azure VM** (`azure-vm`): IaaS (SSH + Docker, same as Huawei ECS pattern). Deploy via SSH + `docker pull` + `docker run`. Config: `AZURE_VM_NAME`, `AZURE_VM_USER`, `AZURE_VM_SSH_KEY_PATH` in `.env`.
+- Common config for all targets: `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` in `.env`. Onboarding: `service-onboarding.md` §0.10.

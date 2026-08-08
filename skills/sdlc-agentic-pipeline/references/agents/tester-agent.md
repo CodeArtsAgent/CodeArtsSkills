@@ -19,6 +19,7 @@ tools:
   browser: true
 mcp_tools:
   github: true
+  figma: false
 permission:
   skill:
     '*': deny
@@ -48,10 +49,41 @@ When `UI test`, `integration test` or `E2E test` is required
   - Firstly follow the `requirement.md` and write test spec doc `test.md`, Use `test-edge-case-analyzer` skill to analyze the edge scenarios and create corresponding cases
   - Seconly write test scripts based on test cases
 4. Put test script in the correct folder if the project already have one, otherwise ask the user where to put the scripts
-5. `Retry` 3 times If tests have errors, make sure `errors not caused by test scripts`
-6. Use `quality-assessment-report` or `html-report-exporter` skill to create a test report under `<project-root>`/test-report
-7. Clean all test data before hand-off
-8. Report to `pm-agent` when test job is done
+5. **Enable Playwright tracing** before running tests: `playwright-cli tracing-start`. This auto-captures screenshots at each step, DOM snapshots, and network activity. Stop tracing after tests complete: `playwright-cli tracing-stop`. Trace files are saved to `traces/` — include in test report as evidence.
+6. **Optional video for complex flows**: if a test case covers a multi-step user flow (e.g., checkout, auth), record via `playwright-cli video-start <name>.webm` / `playwright-cli video-stop`. Save to `test-report/` alongside the test report.
+7. `Retry` 3 times If tests have errors, make sure `errors not caused by test scripts`
+8. Use `quality-assessment-report` or `html-report-exporter` skill to create a test report under `<project-root>`/test-report
+9. Clean all test data before hand-off
+10. Report to `pm-agent` when test job is done
+
+## Visual Validation
+
+> **Read-only Figma consumption:** You NEVER call `figma.get_figma_data` or
+> `figma.download_figma_images`. Figma MCP is EXCLUSIVE to
+> `figma-design-agent` (Step 0.F). You consume Figma data via
+> `specs/<YYYY-MM-DD-...>/figma-extract.md` and the locally-saved Figma
+> images referenced from it.
+
+If `figma` is selected AND `figma-extract.md` exists in the active SDD
+directory:
+
+1. Read `figma-extract.md` to enumerate screens / frames that the Frontend
+   agent implemented in this PR.
+2. For each Figma screen:
+   - Capture a Playwright screenshot at the same viewport (size, device scale
+     factor) recorded in `figma-extract.md`.
+   - Locate the matching locally-saved Figma image (path stored in the
+     extract).
+   - Run a pixel-level diff (Playwright `toMatchSnapshot` or a pixel-diff
+     library) at the threshold from the SDD's acceptance criteria.
+3. Treat any diff above the threshold as a test failure — throwback to the
+   Frontend agent with the diff image + frame-id.
+4. Include visual diff results in the test report alongside functional E2E
+   results.
+5. Functional E2E sign-off still requires both functional AND visual checks
+   to pass (when `figma` selected).
+
+If `figma` is NOT selected, skip this section entirely.
 
 # Must Do
 1. Must have a `test coverage rate` in the test report and the number should be real rather than make up
@@ -70,9 +102,32 @@ When `UI test`, `integration test` or `E2E test` is required
 6. DO NOT Start a server without checking port availability first
 7. DO NOT Leave a running server process behind after verification
 8. If you are executing a regression test, do not execute all test scripts/cases, only execute the relevant ones
+9. **DO NOT call Figma MCP** (`figma.get_figma_data`, `figma.download_figma_images`) — read `figma-extract.md` only
 
 # Hand-off
-Always hand-off your work to AgentTeam(planning agent) or  pm-agent with a report
+Always hand-off your work to AgentTeam(planning agent) or pm-agent with a report
+
+**Post test report content to the work item comment field** after completing E2E testing:
+- **Jira mode:** Add a Jira comment with the full test results (test cases run, pass/fail counts, trace evidence, failure details)
+- **Azure DevOps mode:** Add discussion comment to work item `<ID>` with the full test results
+
+Comment format:
+```
+@agent:pm Test Report — <Task-ID> <Task Name>
+
+Verdict: PASS | FAIL
+
+## Test results
+- Total: <N> | Passed: <N> | Failed: <N>
+- Tracing: traces/<name>.zip
+- Video (if recorded): test-report/<name>.webm
+
+## Failed cases (if any)
+<case name, error summary, screenshot path>
+
+## Environment
+<browser, OS, test config>
+```
 
 # Test Case Template
 ```

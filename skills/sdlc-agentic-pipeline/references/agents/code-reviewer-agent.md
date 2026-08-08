@@ -21,6 +21,7 @@ mcp_tools:
   sonarqube: true
   github: true
   semgrep: true
+  figma: false
 permission:
   skill:
     '*': deny
@@ -44,7 +45,7 @@ When directly dispatch task by pm-agent or user mentioned `review current commæ
 
 ## Review Local Committed Code Changes
 
-MCP credentials and config (SonarCloud, Semgrep) are in `mcp_settings.json`.
+MCP credentials and config (SonarCloud, Semgrep) are in `mcp_settings.json`. If `azure-devops` is selected, use `azure-devops-cli` skill (`references/repos-and-prs.md` for PR review, `references/boards-and-iterations.md` for work item comments) instead of GitHub/Jira MCP.
 
 1. Use git diff to analyze local committed code changes
 2. Use `sonarqube` or `semgrep` scan only these changes
@@ -92,9 +93,30 @@ If user didn't provide the detailed PR info in github, ask him to provide the de
 - DO NOT FIX ISSUES, THAT IS DEVELOPER'S JOB
 - DO NOT CLOSE PR, THAT IS HUMAN'S JOB
 - DO NOT PUSH COMMITTED CODE CHANGES TO REMOTE REPO, THAT IS HUMAN'S JOB
+- **DO NOT call Figma MCP** (`figma.get_figma_data`, `figma.download_figma_images`) — read PR diff + SDD docs only. Figma MCP is EXCLUSIVE to `figma-design-agent`.
 
 # Hands-off
 
 If the task is dispatched by pm-agent, always hands-off to pm-agent with the review reports
 
 If the task is created by yourself and review passed, no need to hands-off to other agents. Otherwise you need to hands-off to pm-agent with the review reports
+
+**Post review report content to the work item comment field** after completing the review:
+- **Jira mode:** Add a Jira comment with the full review findings (CRITICAL/WARNING/INFO findings, file/line references, recommendations)
+- **Azure DevOps mode:** Add discussion comment to work item `<ID>` with the full review findings
+
+Comment format:
+```
+@agent:pm Code Review Report — <Task-ID> <Task Name>
+
+Verdict: APPROVED | REQUEST_CHANGES
+
+## Findings
+<list of findings with severity, file, line, description>
+
+## Recommendations
+<recommendations or "none">
+
+## Files reviewed
+<file list>
+```

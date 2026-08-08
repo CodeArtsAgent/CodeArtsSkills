@@ -32,3 +32,4 @@ Used by the PM Agent in Steps 2 (sprint start) and 9 (sprint close).
 5. **PUT requires full object** — partial updates return 400.
    Always GET the sprint first, then PUT with all required fields.
 6. **Delete script files** after execution (they contain auth tokens).
+7. **Sprint membership**: only Tasks (leaf level) are added to the sprint — NOT Issues or the Epic. Jira: `editJiraIssue` with `customfield_10020`. Azure DevOps: `az boards work-item update --iteration`.
