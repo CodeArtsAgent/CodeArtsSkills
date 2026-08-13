@@ -174,4 +174,47 @@ for fpath in agent_files:
 print()
 print("Done. Agent frontmatter permission.skill blocks updated based on tool selections.")
 print("Built-in utility skills (ide-tool, doc-expert, pptx, data-analysis, prd, frontend-design, i18n-integration) were not modified.")
+
 PYEOF
+
+# --- Install selected skills that require installation ---
+INSTALLER_JS=".codeartsdoer/skills/skill-installer/scripts/installer.js"
+INSTALL_OUTPUT=$(python3 << 'PYEOF2' 2>/dev/null || echo "")
+import json, os
+sel = os.environ.get("SELECTIONS_FILE", "")
+reg = os.environ.get("REGISTRY_FILE", "")
+if not sel or not reg:
+    exit(1)
+with open(sel) as f: s = json.load(f)
+with open(reg) as f: r = json.load(f)
+for skill in r.get("methodologySkills", []):
+    if skill.get("status") != "available": continue
+    if not s.get("tools", {}).get(skill["id"], False): continue
+    if skill.get("type") != "install": continue
+    if not skill.get("installCommand"): continue
+    print(skill["frontmatterKeys"][0])
+PYEOF2
+
+if [ -n "$INSTALL_OUTPUT" ]; then
+    echo ""
+    echo "Installing selected skills that require installation..."
+    for skill_key in $INSTALL_OUTPUT; do
+        skill_dir=".codeartsdoer/skills/$skill_key"
+        if [ -f "$skill_dir/SKILL.md" ]; then
+            echo "Skill '$skill_key' already installed — skipping."
+            continue
+        fi
+        echo "Installing skill '$skill_key' (selected by user)..."
+        if [ -f "$INSTALLER_JS" ]; then
+            if node "$INSTALLER_JS" init --target "$skill_key"; then
+                echo "Skill '$skill_key' installed successfully."
+            else
+                echo "WARNING: installer.js failed for '$skill_key'."
+                echo "The PM Agent should run this manually."
+            fi
+        else
+            echo "WARNING: skill-installer not found at $INSTALLER_JS"
+            echo "The PM Agent should run this manually."
+        fi
+    done
+fi

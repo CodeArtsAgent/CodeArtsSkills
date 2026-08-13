@@ -196,3 +196,93 @@ CLI fallback: `semgrep ci`.
 
 Splitting `npm ci` and `npm run build` into separate GitHub Actions jobs
 breaks `.bin` symlinks — keep install + build in the **same job**.
+
+---
+
+## WARN-AZURE-BASIC-STATES: Azure DevOps Basic Process State Names + Command Safety
+
+Azure DevOps has **different state names** depending on the process template.
+Using the wrong state name causes silent failures — the command may error
+but the work item stays unchanged.
+
+**State mapping by process template:**
+
+| SDLC State | Agile | Basic | Scrum |
+|------------|-------|------|-------|
+| To Do | New | To Do | New |
+| In Progress | Active | Doing | In Progress |
+| In Review | Active (comment) | Doing (comment) | In Progress (comment) |
+| In Testing | Active (comment) | Doing (comment) | In Progress (comment) |
+| Done | Closed | **Done** | Done |
+
+**CRITICAL command safety rules:**
+
+1. **Use `--state` flag**, NOT `--fields "System.State=..."`. The `--state`
+   flag validates the state name against the project's process template.
+2. **NEVER suppress errors** with `2>$null` (PowerShell) or `2>/dev/null`
+   (bash). If the state name is invalid, the command errors — suppressing
+   stderr hides the failure and the work item stays unchanged.
+3. **NEVER hardcode success messages** after a potentially failing command.
+   Always verify the actual output:
+   ```bash
+   # WRONG (silent failure):
+   az boards work-item update --id 147 --state Done --org "..." 2>/dev/null; echo "Updated"
+   
+   # CORRECT (visible, verifiable):
+   az boards work-item update --id 147 --state Done --org "https://dev.azure.com/myorg"
+   # Verify: check the "State" field in the returned JSON output
+   ```
+4. **Detect the process template first** before transitioning states:
+   ```bash
+   # Get the process template:
+   az devops project show --project <PROJECT> --query "properties.processTemplateTypeId" -o tsv
+   # Or check work item type states:
+   az boards work-item show --id <ID> --query "fields.System.State" -o tsv
+   ```
+5. **For Basic process**, use `--state Done` (NOT `--state Closed`).
+   `Closed` does not exist in Basic — the command will error.
+
+---
+
+## WARN-HANDOFF-COMMENTS: Mandatory Discussion Comments at Handoff Points
+
+**Every agent MUST post a discussion comment to the work item at every handoff
+point.** This is the async message bus between agents — skipping it breaks the
+collaboration trail.
+
+**Command (Azure DevOps):**
+```bash
+az boards work-item update --id <ID> --discussion "<message>"
+```
+
+**Required handoff points (pipeline.md):**
+
+| Step | Agent | MANDATORY Comment |
+|------|-------|-------------------|
+| 1 | PM | `@agent:pm Work item created - <summary>` + `@agent:frontend @agent:backend Please review requirements` |
+| 1b | Frontend/Backend | `@agent:pm Review approved` or `@agent:pm Review feedback: <issues>` |
+| 2 | PM/Architect | `@agent:pm SDD complete - spec.md/design.md/tasks.md created` |
+| 3 | Frontend/Backend | `@agent:pm Starting work on <task>` (before coding) + `@agent:code-reviewer PR #<ID> ready for review` (after PR) |
+| 4 | Code Reviewer | `@agent:tester Code review approved` or `@agent:frontend/@agent:backend REQUEST_CHANGES` |
+| 6 | DevOps | `@agent:pm CI/CD report - <build status>` |
+| 9 | PM | `@agent:all Sprint retrospective - <summary>` (on Epic) |
+
+**For multi-line reports** (Steps 3, 4, 6), use HTML formatting — see
+`developer-agent-base.md` §3.8 for the `<br>`/`<p>`/`<b>` conversion pattern.
+
+---
+
+## WARN-STATE-TRANSITION-BEFORE-CODE: Transition to Doing/Active BEFORE Writing Code
+
+**Step 3 (and all development steps) MUST transition the work item to "Active"
+(Agile) or "Doing" (Basic) BEFORE writing any code.** Skipping this causes the
+work item to jump "To Do" → "Done" with no visibility into when coding began.
+
+**Command (Azure DevOps):**
+```bash
+az boards work-item update --id <ID> --state Active  # Agile
+az boards work-item update --id <ID> --state Doing   # Basic
+```
+
+**When:** IMMEDIATELY upon starting work, before `git checkout -b` or any code
+file creation. See `developer-agent-base.md` §3.1.

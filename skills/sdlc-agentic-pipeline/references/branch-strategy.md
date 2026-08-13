@@ -101,6 +101,11 @@ Only Tasks transition through the SDLC lifecycle. Issues and the Epic stay in th
 ### State Mapping
 
 > Azure DevOps Tasks have no "Resolved" state — keep "Active"/"Doing" for In Review/In Testing, use `@agent:` comments to mark phase.
+>
+> **CRITICAL:** State names differ by process template. Agile uses "New"/"Active"/"Closed";
+> Basic uses "To Do"/"Doing"/"Done". Always use the `--state` flag (NOT `--fields "System.State=..."`),
+> never suppress errors with `2>$null`/`2>/dev/null`, and verify the returned state value from
+> command output. See `critical-warnings.md#WARN-AZURE-BASIC-STATES`.
 
 | SDLC State | Jira | Azure DevOps Agile (Task) | Azure DevOps Basic (Task) |
 |------------|------|---------------------------|---------------------------|

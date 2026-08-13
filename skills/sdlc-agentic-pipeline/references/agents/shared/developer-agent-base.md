@@ -6,11 +6,14 @@
 >
 > **Agent-specific overrides are marked with `[OVERRIDE]` in each agent file.**
 
-> **Platform routing:** When `azure-devops` is selected (Step 0.0.5), it is
-> **mutually exclusive** with GitHub + Jira. All Jira MCP calls become
-> Azure DevOps Boards operations; all GitHub MCP calls become Azure DevOps
-> Repos operations. Config: org URL + project in `<project-root>/.env`, PAT in
-> AZURE_DEVOPS_EXT_PAT env var at runtime. See `config-reference.md`.
+> **Platform routing:** When `azure-devops` is selected (Step 0.0.5), it can
+> **coexist** with GitHub + Jira. Azure DevOps CLI handles Azure Repos and
+> Boards operations; GitHub MCP handles GitHub repos/issues; Jira MCP handles
+> Jira boards. Agents route by platform. Config: org URL + project in
+> `<project-root>/.env`, PAT in `AZURE_DEVOPS_EXT_PAT` **user-level** env var
+> (persisted during onboarding, shared across all agents/sessions; the CLI
+> auto-reads it, no `az devops login` needed).
+> See `config-reference.md`.
 >
 > **Azure DevOps mode convention:** Inline **Azure DevOps mode** sections
 > below describe WHAT to do. Consult the `azure-devops-cli` skill's reference
@@ -44,9 +47,9 @@ This applies to ALL PR operations across the pipeline:
 
 ## STEP 1: Requirement Review (Shared Template)
 
-> **Platform routing:** If `azure-devops` is selected (mutually exclusive with
-> GitHub + Jira), use the `azure-devops-cli` skill instead of Jira MCP and
-> GitHub MCP throughout this step.
+> **Platform routing:** If `azure-devops` is selected (can coexist with
+> GitHub + Jira), use the `azure-devops-cli` skill for Azure DevOps operations
+> alongside Jira MCP and GitHub MCP throughout this step.
 
 ### 1.1 Receive Review Request from PM Agent
 - **Jira mode:** Monitor Jira tasks with label `agent:<this-agent>` and status "To Do"
@@ -81,13 +84,12 @@ For each task, evaluate from the `[OVERRIDE: domain-specific perspective]`:
 
 ## STEP 2: Spec-Driven Development Setup (Shared)
 
-### 2.1 Initialize SDD Directory
-- Invoke the `creating-sdd-directory` skill to set up the spec-driven
-  development structure
-- This creates `spec.md`, `design.md`, and `tasks.md` documents
-- Read requirements from Jira tasks assigned with label `agent:<this-agent>`
+> **SDD ownership:** The `architect-agent` is the SOLE creator of SDD files
+> (`spec.md`, `design.md`, `tasks.md`). Do NOT create or modify these files
+> directly. If SDD is needed, delegate to `architect-agent`. You read the
+> SDD docs that architect-agent produces.
 
-### 2.2 Requirement Fetching
+### 2.1 Requirement Fetching
 - **Jira mode:** Discover own tasks via JQL: `labels = agent:<this-agent> AND status = "To Do"`.
   Use `atlassian-rovo-mcp_searchJiraIssuesUsingJql` to fetch tasks. Read task description, timeline,
   and inter-agent comments. Parse acceptance criteria and technical requirements.
@@ -96,32 +98,32 @@ For each task, evaluate from the `[OVERRIDE: domain-specific perspective]`:
   `[System.Tags]` CONTAINS `agent:<this-agent>` AND `[System.State]` = `New`.
   Read work item details by showing the work item.
 
-### 2.3 SDD Document Population
-- Populate `spec.md` with "what to build" based on Jira task requirements
-- Populate `design.md` with "how to build" (`[OVERRIDE: domain-specific]`)
-- Populate `tasks.md` with implementation tasks derived from the design
+### 2.2 Read SDD Docs (created by architect-agent)
+- If `sdd` or `openspec` is selected, `architect-agent` creates and pushes SDD docs
+  (`spec.md`, `design.md`, `tasks.md`) to the remote repo during Step 2.
+- Read the SDD docs from the remote repo (or local `.opencode/specs/` if already merged)
+  to understand the spec, design, and task breakdown for your domain.
+- If SDD docs are missing, request `architect-agent` to create them before starting coding.
 
-### 2.4 Push SDD Directories to GitHub / Azure Repos
-After creating/updating SDD documents locally, push them to the remote
-repository so all agents can access them:
-1. Verify all SDD files are created under `.opencode/specs/`
-2. **Ask user to review** the SDD files before pushing (use `question` tool)
-3. Create a dedicated docs branch: `git checkout -b docs/sdd-<feature_name>`
-4. Stage, commit, and push:
-   ```bash
-   git add .opencode/
-   git commit -m "chore: add/update SDD docs for <feature_name>"
-   git push origin docs/sdd-<feature_name>
-   ```
-5. Create a PR:
-   - **GitHub mode:** `github_create_pull_request` (base: user-chosen integration branch, head: `docs/sdd-<feature_name>`)
-    - **Azure DevOps mode:** Use `azure-devops-cli` skill (`references/repos-and-prs.md`) to create a PR from `docs/sdd-<feature_name>` → `<integration-branch>` with title `"chore: add/update SDD docs for <feature_name>"`
-6. Merge the SDD docs PR immediately (lightweight — documentation only, no
-   Code Reviewer/Tester sign-off required):
-   - **GitHub mode:** `github_merge_pull_request`
-  - **Azure DevOps mode:** Use `azure-devops-cli` skill (`references/repos-and-prs.md`) to complete (merge) PR `<PR_ID>`
-- After merge: `main` now contains all released code for deployment
-7. **Do NOT push directly to main** — always use a PR
+### 2.3 Push SDD Directories (architect-agent responsibility)
+- The `architect-agent` pushes SDD docs to the remote repo:
+  1. Verify all SDD files are created under `.opencode/specs/`
+  2. **Ask user to review** the SDD files before pushing (use `question` tool)
+  3. Create a dedicated docs branch: `git checkout -b docs/sdd-<feature_name>`
+  4. Stage, commit, and push:
+     ```bash
+     git add .opencode/
+     git commit -m "chore: add/update SDD docs for <feature_name>"
+     git push origin docs/sdd-<feature_name>
+     ```
+  5. Create a PR:
+     - **GitHub mode:** `github_create_pull_request` (base: user-chosen integration branch, head: `docs/sdd-<feature_name>`)
+     - **Azure DevOps mode:** Use `azure-devops-cli` skill (`references/repos-and-prs.md`) to create a PR from `docs/sdd-<feature_name>` → `<integration-branch>` with title `"chore: add/update SDD docs for <feature_name>"`
+  6. Merge the SDD docs PR immediately (lightweight — documentation only, no
+     Code Reviewer/Tester sign-off required):
+     - **GitHub mode:** `github_merge_pull_request`
+    - **Azure DevOps mode:** Use `azure-devops-cli` skill (`references/repos-and-prs.md`) to complete (merge) PR `<PR_ID>`
+  7. **Do NOT push directly to main** — always use a PR
 
 ---
 
@@ -169,10 +171,10 @@ If `figma` is NOT selected, skip this section entirely.
     { transition: { id: "<In Progress transition ID>" } })
   ```
   Comment on Jira task: `@agent:pm Starting work on <task summary>`
-- **Azure DevOps mode:** Use `azure-devops-cli` skill
+- **Azure DevOps mode:** **IMMEDIATELY** upon starting work, BEFORE writing any code, use `azure-devops-cli` skill
   (`references/boards-and-iterations.md`) to:
-  - Update work item `<WORK_ITEM_ID>` state to "Active"
-  - Add discussion comment: `@agent:pm Starting work on <task summary>`
+  - Update work item `<WORK_ITEM_ID>` state to "Active" (Agile) or "Doing" (Basic) — see `critical-warnings.md#WARN-AZURE-BASIC-STATES`
+  - Add discussion comment: `az boards work-item update --id <ID> --discussion "@agent:pm Starting work on <task summary>"`
 
 ### 3.2 Branch Management
 - Pull latest code from remote, create feature branch
@@ -243,10 +245,10 @@ This is mandatory before proceeding to quality control.
   - **Azure DevOps mode:** Use `azure-devops-cli` skill (`references/repos-and-prs.md`) to create a PR from `feature/<agent>/<short-description>` → `<integration-branch>` with title `"<title>"`
 - Transition task status:
   - **Jira mode:** Transition Jira task to "In Review" status
-  - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (`@agent:code-reviewer` comment marks review phase)
+  - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic) (`@agent:code-reviewer` comment marks review phase)
 - Comment for Code Reviewer:
   - **Jira mode:** Comment on the Jira task: `@agent:code-reviewer PR #X ready for review - <agent> implementation complete - Semgrep pre-scan passed (0 critical, N warnings)`
-  - **Azure DevOps mode:** Add discussion comment to work item `<ID>`: `@agent:code-reviewer PR #<PR_ID> ready for review - <agent> implementation complete - Semgrep pre-scan passed (0 critical, N warnings)`
+  - **Azure DevOps mode:** `az boards work-item update --id <ID> --discussion "@agent:code-reviewer PR #<PR_ID> ready for review - <agent> implementation complete - Semgrep pre-scan passed (0 critical, N warnings)"`
 - Do NOT auto-merge — wait for Code Reviewer sign-off + Tester sign-off +
   PM/human approval
 
@@ -254,34 +256,11 @@ This is mandatory before proceeding to quality control.
 After writing the local report file and before reporting back to PM Agent, post the full report content to the work item comment field so all agents can read the details inline.
 
 - **Jira mode:** Add a Jira comment with the full report content via `atlassian-rovo-mcp` MCP
-- **Azure DevOps mode:** Add discussion comment to work item `<ID>`
+- **Azure DevOps mode:** Use `az boards work-item update --id <ID> --discussion "<HTML_CONTENT>"`. Azure DevOps work item discussions accept HTML — use `<br>` for line breaks, `<p>` for paragraphs, `<b>` for bold, `<code>` for inline code. Do NOT pass raw markdown; convert headings/sections to HTML tags so multi-line report content renders correctly in a single-line command.
 
-Comment format:
-```
-@agent:pm Task Report — <Task-ID> <Task Name>
-
-Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-
-## What was implemented
-<summary of implementation>
-
-## Test results
-<test summary, e.g. "14/14 passing">
-
-## Files changed
-<file list>
-
-## TDD Evidence (if applicable)
-RED: <command + failing output>
-GREEN: <command + passing output>
-
-## Self-review findings
-<findings or "none">
-
-## Issues / concerns
-<concerns or "none">
-
-Report file: task-reports/<task-id>-<task-name>.md
+Example (Azure DevOps):
+```bash
+az boards work-item update --id <ID> --discussion "<p><b>@agent:pm Task Report — <Task-ID> <Task Name></b></p><br><p>Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT</p><br><p><b>What was implemented</b></p><p><summary of implementation></p><br><p><b>Test results</b></p><p><test summary, e.g. \"14/14 passing\"></p><br><p><b>Files changed</b></p><p><file list></p><br><p><b>TDD Evidence (if applicable)</b></p><p>RED: <command + failing output><br>GREEN: <command + passing output></p><br><p><b>Self-review findings</b></p><p><findings or \"none\"></p><br><p><b>Issues / concerns</b></p><p><concerns or \"none\"></p><br><p>Report file: task-reports/<task-id>-<task-name>.md</p>"
 ```
 
 > This is SEPARATE from the short `@agent:code-reviewer` routing comment in 3.7. The routing comment triggers the next agent; this report comment provides the full evidence trail on the work item.
@@ -313,9 +292,10 @@ Before merging any feature PR, verify ALL of the following
   - **Azure DevOps mode:** Use `azure-devops-cli` skill
     (`references/repos-and-prs.md`) to complete (merge) PR `<PR_ID>`
 - Verify all feature branches are merged into the integration branch
+- **MANDATORY**: Remind user via `question` tool to confirm all PRs merged successfully (especially for manually created PRs on GitHub/etc.) — do NOT proceed until user confirms
 - Comment on task:
   - **Jira mode:** Comment on Jira task: `@agent:pm All feature PRs merged into <branch> - ready for CI/CD`
-  - **Azure DevOps mode:** Add discussion comment to work item `<ID>`: `@agent:pm All feature PRs merged into <branch> - ready for CI/CD`
+  - **Azure DevOps mode:** `az boards work-item update --id <ID> --discussion "@agent:pm All feature PRs merged into <branch> - ready for CI/CD"`
 
 ---
 
@@ -345,6 +325,7 @@ Before merging any feature PR, verify ALL of the following
   - **GitHub mode:** `github_merge_pull_request` (respects branch protection rules on `main`)
   - **Azure DevOps mode:** Use `azure-devops-cli` skill (`references/repos-and-prs.md`) to complete (merge) PR `<PR_ID>`
 - After merge: `main` now contains all released code for deployment
+- **MANDATORY**: Remind user via `question` tool to confirm the release PR (`dev` -> `main`) was merged successfully — do NOT proceed to deployment until user confirms
 - Report success to PM Agent: `@agent:pm Release merge dev -> main complete`
 
 ### 7.3 Merge Conflict Resolution (Simplified)
@@ -421,8 +402,8 @@ If Code Reviewer or Tester reports issues:
    - **Azure DevOps mode:** Work item discussion (same `@agent:` prefix convention)
 2. Transition task BACK to "In Progress":
    - **Jira mode:** `atlassian-rovo-mcp_transitionJiraIssue`
-   - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active`
-3. Fix the reported issue
+   - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic)
+ 3. Fix the reported issue
 4. Re-run local Semgrep scan (§3.5) to verify fix
   5. Push fix to remote and comment:
      ```bash
@@ -433,7 +414,7 @@ If Code Reviewer or Tester reports issues:
      `@agent:code-reviewer Fix applied for <issue> - Semgrep re-scan passed - please re-review`
 6. Transition task back to "In Review":
    - **Jira mode:** `atlassian-rovo-mcp_transitionJiraIssue`
-   - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (`@agent:code-reviewer` comment marks review phase)
+  - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic) (`@agent:code-reviewer` comment marks review phase)
 
 
 ---
@@ -452,18 +433,16 @@ If Code Reviewer or Tester reports issues:
   tool selection.
 - **Methodology skills** (`creating-sdd-directory`, `managing-spec-document`,
   `managing-design-document`, `managing-tasks-document` for SDD) are
-  **dynamically granted/revoked** at onboarding time by the
-  `apply-tool-selections` script based on `tool-selections.json`. If SDD
-  Toolkit was not selected, these permissions are absent from the
-  frontmatter.
+  **granted ONLY to `architect-agent`**. Developer agents do NOT have these
+  skills. If SDD is needed, delegate to `architect-agent`.
 
 ### Per-Step Conditional Logic
 
 | Step | Conditional Behavior |
 |------|---------------------|
-| **1b** (Review) | If `jira` NOT selected -> skip review (no Jira comments). If `github` NOT selected -> review via local file diff instead of PR review. If `azure-devops` selected -> use `azure-devops-cli` skill (`references/boards-and-iterations.md`) for work item comments instead of Jira MCP; use `azure-devops-cli` skill (`references/repos-and-prs.md`) for PR review instead of GitHub MCP. |
-| **2** (SDD Setup) | If `sdd` NOT selected AND `openspec` NOT selected -> skip SDD directory creation; proceed with plain task list. If `azure-devops` selected -> push SDD docs to Azure Repos via `git push` + `azure-devops-cli` skill (`references/repos-and-prs.md`) for PR creation instead of GitHub MCP. |
-| **3** (Dev) | If `github` NOT selected AND `azure-devops` NOT selected -> no feature branches, no PRs; commit directly to local working directory. If `azure-devops` selected -> use `azure-devops-cli` skill (`references/repos-and-prs.md`) for branch/PR operations instead of GitHub MCP; use `azure-devops-cli` skill (`references/boards-and-iterations.md`) for status transitions instead of Jira MCP. If `semgrep` NOT selected -> skip local Semgrep pre-scan. `[OVERRIDE: agent-specific built-in skills]` always available. |
+| **1b** (Review) | If `jira` NOT selected -> skip review (no Jira comments). If `github` NOT selected -> review via local file diff instead of PR review. If `azure-devops` selected -> use `azure-devops-cli` skill (`references/boards-and-iterations.md`) for Azure work item comments; use `azure-devops-cli` skill (`references/repos-and-prs.md`) for Azure PR review. When both platforms selected, agents operate on both. |
+| **2** (SDD Setup) | If `sdd` NOT selected AND `openspec` NOT selected -> skip SDD. If SDD needed, delegate to `architect-agent` (SOLE SDD creator). Developer reads SDD docs that architect produces. If `azure-devops` selected -> architect pushes SDD docs to Azure Repos. |
+| **3** (Dev) | If `github` NOT selected AND `azure-devops` NOT selected -> no feature branches, no PRs; commit directly to local working directory. If `azure-devops` selected -> use `azure-devops-cli` skill (`references/repos-and-prs.md`) for Azure branch/PR operations; use `azure-devops-cli` skill (`references/boards-and-iterations.md`) for Azure status transitions. When both platforms selected, create PRs on both. If `semgrep` NOT selected -> skip local Semgrep pre-scan. `[OVERRIDE: agent-specific built-in skills]` always available. |
 
 > **Azure DevOps applies to all PR/task operations** in Steps 5, 7, and 9
 > as well — use `azure-devops-cli` skill (`references/repos-and-prs.md`)

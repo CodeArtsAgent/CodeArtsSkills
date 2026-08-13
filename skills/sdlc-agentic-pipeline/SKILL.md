@@ -20,8 +20,8 @@ read Figma data through `figma-extract.md` and the updated SDD docs.
 | Step | Agent(s) | Action |
 |------|----------|--------|
 | 0 | PM + Frontend/Backend/DevOps | Onboarding: auto-provision agents, tool selection |
-| 0.DA | Architect | Design phase: classify task, DDD/SDD/TDD (reads figma-extract.md) |
-| 0.F | Figma Design | (Optional, pre-Step 0.DA) Figma-vs-SDD diff, update SDD docs |
+| 0.DA | Architect | Design phase: classify task, DDD/SDD/TDD (**SKIPPED if Step 0.F ran** — no design.md created) |
+| 0.F | PM → Figma Design | (Optional, pre-Step 0.DA) User provides raw req + Figma URL → pm-agent creates requirement.md → figma-design-agent (extract + diff vs requirement.md) → pm-agent updates requirement.md+tasks.md → pm-agent (task breakdown + Azure push) |
 | 1 | PM | Requirement breakdown, PRD, batch Jira tasks |
 | 1b | Frontend/Backend | Requirement review (parallel via Jira async) |
 | 2 | PM + Developer | Sprint start + SDD setup |
@@ -45,7 +45,7 @@ read Figma data through `figma-extract.md` and the updated SDD docs.
 
 | Agent | File | Steps |
 |-------|------|-------|
-| PM | `references/agents/pm-agent.md` | 0, 1, 1b, 2, 5, 7, 8, 9 |
+| PM | `references/agents/pm-agent.md` | 0, 0.F, 1, 1b, 2, 5, 7, 8, 9 |
 | Backend | `references/agents/backend-agent.md` | 0, 1b, 2, 3, 5, 7, 9 |
 | Frontend | `references/agents/frontend-agent.md` | 0, 1b, 2, 3, 5, 7, 9 |
 | Code Reviewer | `references/agents/code-reviewer-agent.md` | 4 |
@@ -70,15 +70,20 @@ PM Agent presents 4 multiselect questions (MCP servers, SDD, TDD, DDD).
 Selection persisted to `.codeartsdoer/tool-selections.json`. See `references/setup/multi-tool-selection-plan.md`.
 Figma MCP is selectable as part of Q1 (MCP & Services); selecting it triggers Step 0.11 onboarding.
 
-### Step 0.F - Figma-vs-SDD Diff (optional, runs when `figma` selected AND SDD docs already exist)
+### Step 0.F - Figma-to-Code (optional, runs when `figma` selected)
 
-1. User invokes `figma-design-agent` with a Figma URL + target SDD directory
-2. Agent calls `figma.get_figma_data` and `figma.download_figma_images`
-3. Agent writes `specs/<YYYY-MM-DD-...>/figma-extract.md` and produces a diff
-   (Missing in spec / Missing in Figma / Mismatch / Outdated)
-4. User confirms each category; agent updates `spec.md` / `design.md` / `tasks.md`
-5. Agent hands off to `pm-agent` with the routing breakdown
+Entry point: **`pm-agent`** (not `figma-design-agent` directly).
+
+1. User provides raw requirement + Figma URL + node-id to `pm-agent`
+2. `pm-agent` uses `sdlc-brainstorming`, creates `requirement.md` from the raw requirement
+3. `pm-agent` hands off to `figma-design-agent` with: `requirement.md` path + Figma URL + node-id
+4. `figma-design-agent` calls `figma.get_figma_data` and `figma.download_figma_images`, writes `specs/<YYYY-MM-DD-...>/figma-extract.md`
+5. `figma-design-agent` produces a diff (Missing in spec / Missing in Figma / Mismatch / Outdated)
+6. User confirms each category; `pm-agent` updates `requirement.md` + creates `tasks.md` per resolution
+7. `figma-design-agent` hands off to `pm-agent` with the routing breakdown
    (`frontend` / `backend` / `tester` / `code-reviewer` / `devops`)
+8. `pm-agent` breaks down tasks per `tasks.md`, creates Epic → Issue → Task hierarchy, pushes to Azure DevOps
+
 
 ## Methodology Skills
 
@@ -87,7 +92,7 @@ Figma MCP is selectable as part of Q1 (MCP & Services); selecting it triggers St
 | SDD | SDD Toolkit, OpenSpec | First selected = PRIMARY; others = SUPPLEMENTARY |
 | TDD | Playwright (E2E), Postman/Newman (API), Jest/Vitest/Pytest/JUnit (Unit) | Each tool owns its own test layer; all must pass |
 | DDD | Context Mapper, EventStorming, Structurizr | First selected = PRIMARY; others = SUPPLEMENTARY |
-| DevOps | Azure DevOps CLI | Mutually exclusive with GitHub + Jira |
+| DevOps | Azure DevOps CLI | Can coexist with GitHub + Jira; agents route by platform |
 | Design-to-Code | Figma MCP | Figma data → SDD docs → frontend/backend implementation |
 
 Built-in utility skills (always on, not selectable): `ide-tool`, `doc-expert`, `pptx`, `data-analysis`, `prd`, `frontend-design`, `i18n-integration`, `skill-installer`
@@ -98,14 +103,14 @@ Deny-by-default. Only explicitly allowed skills can be invoked.
 
 | Agent | Additional Allowed Skills (beyond `ide-tool`) |
 |-------|-----------------------------------------------|
-| PM | `creating-sdd-directory`, `data-analysis`, `doc-expert`, `managing-design-document`, `managing-spec-document`, `managing-tasks-document`, `openspec`, `pptx`, `prd`, `skill-installer` |
-| Backend | `creating-sdd-directory`, `managing-spec-document`, `managing-design-document`, `managing-tasks-document`, `openspec`, `skill-installer` |
-| Frontend | `creating-sdd-directory`, `frontend-design`, `i18n-integration`, `managing-spec-document`, `managing-design-document`, `managing-tasks-document`, `openspec`, `skill-installer` |
+| PM | `data-analysis`, `doc-expert`, `openspec`, `pptx`, `prd`, `skill-installer`, `managing-spec-document`, `managing-tasks-document` |
+| Backend | `openspec`, `skill-installer` |
+| Frontend | `frontend-design`, `i18n-integration`, `openspec`, `skill-installer` |
 | Code Reviewer | _(none)_ |
 | Tester | `playwright-cli`, `skill-installer` |
 | DevOps | _(none)_ |
-| Architect | `creating-sdd-directory`, `managing-spec-document`, `managing-design-document`, `managing-tasks-document`, `skill-installer` + TDD/DDD tool permissions (dynamic) |
-| Figma Design | `brainstorming`, `managing-spec-document`, `managing-design-document` |
+| Architect | `creating-sdd-directory`, `managing-design-document`, `skill-installer` + TDD/DDD tool permissions (dynamic) |
+| Figma Design | `sdlc-brainstorming` |
 
 ## Directory Structure
 
@@ -158,7 +163,7 @@ sdlc-agentic-pipeline/
 2. Copy `sdlc-agentic-pipeline/` into `.codeartsdoer/skills/`
 3. Append `sdlc-agentic-pipeline=true` to `.codeartsdoer/skills/ProjectSkillStatus.txt`
 4. Run Step 0 (Service Onboarding) — if `figma` is selected, run Step 0.11 first
-5. (Optional) Run Step 0.F (`figma-design-agent`) when an SDD directory + Figma URL exist
+5. (Optional) Run Step 0.F (Figma-to-Code) — user provides raw requirement + Figma URL + node-id to `pm-agent`
 6. Say "start agentic flow"
 
 ## Reference Index
@@ -185,8 +190,14 @@ sdlc-agentic-pipeline/
 - Tester Agent exclusively owns E2E/Playwright tests; Frontend/Backend own unit/component tests
 - CI/CD is auto-triggered on push to `dev`
 - Pipeline degrades gracefully — steps that depend on unselected tools are skipped
-- Azure DevOps CLI is mutually exclusive with GitHub + Jira — when selected, the `azure-devops-cli` skill replaces GitHub MCP (Repos), Jira MCP (Boards), and GitHub Actions (Pipelines)
+- Azure DevOps CLI can coexist with GitHub + Jira — when both are selected, agents route by platform: Azure DevOps CLI for Azure Repos/Boards/Pipelines, GitHub MCP for GitHub repos/issues/actions, Jira MCP for Jira boards
 - **Figma MCP is EXCLUSIVE to `figma-design-agent`** — no other agent may call
   `figma.get_figma_data` or `figma.download_figma_images`; all other agents read
-  `specs/<YYYY-MM-DD-...>/figma-extract.md` and the SDD docs that
-  `figma-design-agent` updates after user-confirmed diff.
+  `specs/<YYYY-MM-DD-...>/figma-extract.md` and the SDD docs that `pm-agent`
+  updates after user-confirmed diff.
+- **SDD file ownership**: `pm-agent` creates `requirement.md` and `tasks.md`;
+  `architect-agent` creates `design.md` ONLY. No agent may create or modify
+  SDD files outside its ownership. `pm-agent` does NOT touch `design.md`;
+  `architect-agent` does NOT touch `requirement.md` or `tasks.md`.
+  In Step 0.F (Figma-to-Code), `design.md` is NOT created — the flow uses
+  `requirement.md` + `tasks.md` only; `design.md` is created later in Step 0.DA / Step 1.

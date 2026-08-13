@@ -1,5 +1,5 @@
 ---
-name: brainstorming
+name: sdlc-brainstorming
 description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
 ---
 
@@ -148,4 +148,4 @@ A browser-based companion for showing mockups, diagrams, and visual options duri
 A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
 
 If they agree to the companion, read the detailed guide before proceeding:
-`skills/brainstorming/visual-companion.md`
+`skills/sdlc-brainstorming/visual-companion.md`

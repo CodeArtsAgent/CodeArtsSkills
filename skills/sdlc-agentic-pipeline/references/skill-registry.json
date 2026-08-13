@@ -33,7 +33,7 @@
         "managing-design-document",
         "managing-tasks-document"
       ],
-      "grantedToAgents": ["pm", "backend", "frontend", "architect"],
+      "grantedToAgents": ["architect"],
       "pipelineSteps": [2],
       "onboardingStep": null,
       "verifyCommand": null,
@@ -228,7 +228,7 @@
       "status": "available",
       "type": "install",
       "methodology": "DevOps",
-      "description": "Repos, pipelines, boards, and builds via Azure CLI (alternative to GitHub + Jira).",
+      "description": "Repos, pipelines, boards, and builds via Azure CLI (can coexist with GitHub + Jira).",
       "frontmatterKeys": ["azure-devops-cli"],
       "grantedToAgents": ["pm", "backend", "frontend", "devops", "code-reviewer"],
       "pipelineSteps": [1, 2, 3, 4, 6, 7],
@@ -242,7 +242,7 @@
       "prerequisites": [
         "az extension add --name azure-devops",
         "az devops configure --defaults organization=<URL> project=<PROJECT>",
-        "AZURE_DEVOPS_EXT_PAT=<PAT> (env var, non-interactive auth — no az devops login needed)"
+        "AZURE_DEVOPS_EXT_PAT=<PAT> (user-level env var, non-interactive auth — no az devops login needed; persists across sessions/agents)"
       ],
       "artifactAlternatives": {
         "jfrogSelected": "JFrog Artifactory handles Docker images + build artifacts",

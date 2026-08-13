@@ -12,15 +12,15 @@ Ready-to-fill templates are in `references/templates/`:
 | Template | Description |
 |----------|-------------|
 | `mcp-settings.json` | MCP server configuration with `env` blocks for non-secret identifiers (conditional: only selected MCP entries included) |
-| `ci-cd.yml` | GitHub Actions workflow template (conditional: only selected stages included; not generated if GitHub not selected) |
-| `azure-pipelines.yml` | Azure Pipelines workflow template (NOT generated during onboarding — DevOps agent creates it during Step 6 based on project structure + artifact repo selection). Artifact backend: JFrog (if selected) or Azure Artifacts/ACR (if JFrog NOT selected) |
+| `ci-cd.yml` | GitHub Actions workflow template — NOT generated during onboarding; DevOps agent generates it at Step 6 if `github` selected |
+| `azure-pipelines.yml` | Azure Pipelines workflow template — NOT generated during onboarding; DevOps agent generates it at Step 6 if `azure-devops` selected. Artifact backend: JFrog (if selected) or Azure Artifacts/ACR (if JFrog NOT selected) |
 | `sonar-project.properties` | SonarCloud project configuration (only if SonarCloud selected) |
 | `env-template.env` | Environment variables — JFrog + ECS + Azure DevOps + ACR config (MCP service config lives in mcp_settings.json) |
 | `set-secrets.js` | GitHub Actions secrets/variables setup script (conditional: only selected service secrets/vars) |
 | `add_ssh_key.py` | Python script to add SSH public key to Huawei Cloud ECS for key-based authentication |
 | `apply-tool-selections.ps1` | Windows: updates agent `permission.skill` blocks based on `tool-selections.json` + `skill-registry.json` (methodology skills only, never touches built-in) |
 | `apply-tool-selections.sh` | macOS/Linux: same as above |
-| `SKILL.md` | Postman MCP skill definition (TDD: API layer) |
+| `postman-skill.md` | Postman MCP skill definition (TDD: API layer) |
 | `sprint-scripts/` | Cross-platform sprint management scripts (see below) |
 
 ### Sprint Scripts (`references/templates/sprint-scripts/`)
@@ -83,10 +83,11 @@ EXCLUSIVELY by `figma-design-agent`; all other agents read
 `specs/<YYYY-MM-DD-...>/figma-extract.md` and the SDD docs that
 `figma-design-agent` updates.
 
-Azure DevOps is configured as a CLI tool (not MCP) — org URL, project, and repo name in `<project-root>/.env`,
-PAT via `AZURE_DEVOPS_EXT_PAT` env var at runtime (non-interactive, not persisted). Mutually exclusive with GitHub + Jira. The `azure-devops-cli`
+Azure DevOps is configured as a CLI tool (not MCP) — org URL, project, repo name, and assigned-to user email in `<project-root>/.env`,
+PAT via `AZURE_DEVOPS_EXT_PAT` **user-level** env var (persisted during onboarding, shared across all agents/sessions; the CLI auto-reads it — non-interactive, stored in OS user profile not in any repo file). Can coexist with GitHub + Jira. The `azure-devops-cli`
 skill (installed from `github/awesome-copilot`) provides reference files
 for Azure Repos, Boards, and Pipelines CLI command patterns for agents.
+Work items are assigned to the Azure DevOps user via `--assigned-to "$AZURE_DEVOPS_ASSIGNED_TO"` at creation time. This email is Azure DevOps ONLY — do NOT use it for GitHub operations (GitHub uses `GITHUB_OWNER` from §0.1).
 
 **Azure Artifacts/ACR** (conditional: only when `jfrog` NOT selected and `azure-devops` selected):
 - Azure Container Registry (ACR) replaces JFrog Docker registry — `ACR_NAME` in `<project-root>/.env`, login server is `<ACR_NAME>.azurecr.io`
