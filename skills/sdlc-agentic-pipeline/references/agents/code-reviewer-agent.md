@@ -45,7 +45,7 @@ When directly dispatch task by pm-agent or user mentioned `review current commæ
 
 ## Review Local Committed Code Changes
 
-MCP credentials and config (SonarCloud, Semgrep) are in `mcp_settings.json`. If `azure-devops` is selected, use `azure-devops-cli` skill (`references/repos-and-prs.md` for PR review, `references/boards-and-iterations.md` for work item comments) instead of GitHub/Jira MCP.
+MCP credentials and config (SonarCloud, Semgrep) are in `mcp_settings.json`. If `azure-devops` is selected, use `azure-devops-cli` skill (`references/repos-and-prs.md` for Azure PR review, `references/boards-and-iterations.md` for Azure work item comments) alongside GitHub/Jira MCP. When both platforms are selected, review PRs on both.
 
 1. Use git diff to analyze local committed code changes
 2. Use `sonarqube` or `semgrep` scan only these changes
@@ -86,7 +86,7 @@ If user didn't provide the detailed PR info in github, ask him to provide the de
 - No obvious logic errors or security anti-patterns
 
 # Must Do
-- Carefully read the `requriement.md`, `design.md` to make sure you already fully understand the requirement and architecture design, before you start to review code or PR
+- Carefully read the `spec.md`, `design.md` to make sure you already fully understand the requirement and architecture design, before you start to review code or PR
 
 # Must Not Do
 
@@ -100,23 +100,3 @@ If user didn't provide the detailed PR info in github, ask him to provide the de
 If the task is dispatched by pm-agent, always hands-off to pm-agent with the review reports
 
 If the task is created by yourself and review passed, no need to hands-off to other agents. Otherwise you need to hands-off to pm-agent with the review reports
-
-**Post review report content to the work item comment field** after completing the review:
-- **Jira mode:** Add a Jira comment with the full review findings (CRITICAL/WARNING/INFO findings, file/line references, recommendations)
-- **Azure DevOps mode:** Add discussion comment to work item `<ID>` with the full review findings
-
-Comment format:
-```
-@agent:pm Code Review Report — <Task-ID> <Task Name>
-
-Verdict: APPROVED | REQUEST_CHANGES
-
-## Findings
-<list of findings with severity, file, line, description>
-
-## Recommendations
-<recommendations or "none">
-
-## Files reviewed
-<file list>
-```

@@ -45,11 +45,15 @@ avatar: avatar1
 > `github_merge_pull_request`). All PR operations are delegated to developer agents
 > (Backend or Frontend) based on the PR Routing table below.
 
-> **Platform routing:** If `azure-devops` is selected (mutually exclusive with
-> GitHub + Jira), use the `azure-devops-cli` skill for branch/PR operations
-> and work item tracking instead of GitHub/Jira MCP. CI/CD uses Azure Pipelines
-> instead of GitHub Actions. Config: org URL + project in `.env`, PAT in
-> AZURE_DEVOPS_EXT_PAT env var at runtime.
+> **Platform routing:** If `azure-devops` is selected (can coexist with
+> GitHub + Jira), use the `azure-devops-cli` skill for Azure branch/PR operations
+> and Azure work item tracking. When `github` is also selected, GitHub MCP
+> handles GitHub repos/issues in parallel. When `jira` is also selected,
+> Jira MCP handles Jira boards in parallel. CI/CD uses Azure Pipelines when
+> `azure-devops` selected, GitHub Actions when `github` selected, or both.
+> Config: org URL + project in `.env`, PAT in `AZURE_DEVOPS_EXT_PAT`
+> **user-level** env var (persisted during onboarding, shared across all
+> agents/sessions; the CLI auto-reads it).
 >
 > **Azure DevOps mode convention:** Inline **Azure DevOps mode** sections
 > below describe WHAT to do. Consult the `azure-devops-cli` skill's reference
@@ -234,10 +238,10 @@ PR operations delegated to developer agents:
 **Prerequisite**: Code Review (Step 4) AND E2E Testing (Step 5) must both pass before triggering CI/CD. This ensures only verified, tested code enters the pipeline.
 
 > **Platform routing:** If `azure-devops` is selected, CI/CD runs via
-> Azure Pipelines (see `azure-devops-cli` skill, `references/pipelines-and-builds.md`)
-> instead of GitHub Actions.
-> Pipeline definition file: `azure-pipelines.yml` (instead of `.github/workflows/ci-cd.yml`).
-> Secrets/variables: Azure DevOps variable groups (instead of GitHub Actions secrets/variables).
+> Azure Pipelines (see `azure-devops-cli` skill, `references/pipelines-and-builds.md`).
+> When `github` is also selected, GitHub Actions runs in parallel.
+> Pipeline definition file: `azure-pipelines.yml` for Azure, `.github/workflows/ci-cd.yml` for GitHub.
+> Secrets/variables: Azure DevOps variable groups for Azure, GitHub Actions secrets/variables for GitHub.
 
 ### 6.1 Task Discovery
 - **Jira mode:** Discover DevOps tasks via JQL: `labels = agent:devops AND status = "In Review"`. Also monitor Jira comments from Tester: `@agent:devops E2E sign-off complete - ready for CI/CD`. Use `atlassian-rovo-mcp_searchJiraIssuesUsingJql` to fetch tasks.
@@ -246,7 +250,7 @@ PR operations delegated to developer agents:
 ### 6.2 Status Transition - In Progress
 - **IMMEDIATELY** upon starting CI/CD work, transition task status to "In Progress"
   - **Jira mode:** Comment on Jira task: `@agent:pm Starting CI/CD pipeline for <task summary>`
-  - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` + comment `@agent:pm Starting CI/CD pipeline for <task summary>`
+  - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic) + comment `@agent:pm Starting CI/CD pipeline for <task summary>`. See `critical-warnings.md#WARN-AZURE-BASIC-STATES`.
 
 ### 6.3 Workflow / Pipeline Definition Management
 - **GitHub mode:** Read existing workflow files using `github_get_file_contents` (path: `.github/workflows/`)
@@ -423,13 +427,13 @@ Procedure (Azure DevOps):
 - **Detect failures**: If any run has `conclusion: failure`:
   1. Identify which job and step failed
   2. Get failure logs via API
-  3. Comment on task: `@agent:frontend` or `@agent:backend CI/CD failed at <stage>/<step> - error: <message>`
-     - **Jira mode:** Comment on Jira task
-     - **Azure DevOps mode:** Add discussion comment to work item `<ID>`
+   3. Comment on task: `@agent:frontend` or `@agent:backend CI/CD failed at <stage>/<step> - error: <message>`
+      - **Jira mode:** Comment on Jira task
+      - **Azure DevOps mode:** `az boards work-item update --id <ID> --discussion "@agent:frontend or @agent:backend CI/CD failed at <stage>/<step> - error: <message>"`
    4. Transition task BACK to "In Progress" (error throwback to developer)
       - **Jira mode:** `atlassian-rovo-mcp_transitionJiraIssue`
-      - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active`
-   5. Do NOT proceed to JFrog verification until CI passes
+       - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic)
+    5. Do NOT proceed to JFrog verification until CI passes
 - **Azure DevOps mode:** Check pipeline run status via `azure-devops-cli` skill (`references/pipelines-and-builds.md`) — list recent runs and show run details.
   Detect failures: if `status` is `failed` or `canceled`, identify the failing
   stage by showing run details and trigger error throwback.
@@ -442,11 +446,12 @@ Procedure (Azure DevOps):
 
 ## STEP 7: JFrog Artifactory Verification + SonarCloud Quality Gate
 
-> **Platform routing:** All "Comment on Jira task" / "Transition Jira task"
-> references in this step apply to Azure DevOps work items when
-> `azure-devops` is selected. Use `azure-devops-cli` skill
-> (`references/boards-and-iterations.md`) for both discussion comments and
-> state transitions.
+> **Platform routing:** "Comment on Jira task" / "Transition Jira task"
+> applies to Azure DevOps work items when `azure-devops` is selected, and
+> to Jira tasks when `jira` is selected. Use `azure-devops-cli` skill
+> (`references/boards-and-iterations.md`) for Azure DevOps discussion
+> comments and state transitions. Use Jira MCP for Jira operations.
+> When both are selected, operate on both platforms.
 
 ### 7.1 JFrog Build Info Verification
 > **NOTE:** JFrog verification uses the JFrog Artifactory REST API directly
@@ -513,10 +518,10 @@ Procedure (Azure DevOps):
 - If Quality Gate **PASSES**:
   - Comment on task: `@agent:pm SonarCloud Quality Gate PASSED - CI/CD + JFrog + SonarCloud all green`
     - **Jira mode:** Comment on Jira task
-    - **Azure DevOps mode:** Add discussion comment to work item `<ID>`
+    - **Azure DevOps mode:** `az boards work-item update --id <ID> --discussion "@agent:pm SonarCloud Quality Gate PASSED - CI/CD + JFrog + SonarCloud all green"`
   - Transition task to "In Review" for PM release review
     - **Jira mode:** `atlassian-rovo-mcp_transitionJiraIssue`
-    - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (`@agent:pm` comment marks release review)
+    - **Azure DevOps mode:** `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic) (`@agent:pm` comment marks release review)
 - If Quality Gate **FAILS**:
   - Read detailed issues via `sonarqube_search_sonar_issues_in_projects`
   - Categorize failures:
@@ -525,7 +530,7 @@ Procedure (Azure DevOps):
     - **Maintainability issues**: `impactSoftwareQualities: ["MAINTAINABILITY"]`
   - Comment on task: `@agent:frontend` or `@agent:backend SonarCloud Quality Gate FAILED - <N> issues found`
     - **Jira mode:** Comment on Jira task
-    - **Azure DevOps mode:** Add discussion comment to work item `<ID>`
+    - **Azure DevOps mode:** `az boards work-item update --id <ID> --discussion "@agent:frontend or @agent:backend SonarCloud Quality Gate FAILED - <N> issues found"`
   - Transition Jira task BACK to "In Progress" (error throwback to developer)
 
 ### 7.5 Security Hotspot Review
@@ -560,7 +565,7 @@ Procedure (Azure DevOps):
   - Comment on Jira task: `@agent:pm JFrog verified + SonarCloud QG passed - build <name>#<number>, all green`
   - **Post full CI/CD report content to work item comment**:
     - **Jira mode:** Add a Jira comment with the full pipeline report
-    - **Azure DevOps mode:** Add discussion comment to work item `<ID>`
+    - **Azure DevOps mode:** `az boards work-item update --id <ID> --discussion "<HTML_CONTENT>"`. Convert markdown to HTML tags (`<br>` for line breaks, `<p>` for paragraphs, `<b>` for bold) — see `developer-agent-base.md` §3.8 for formatting guidance.
     - Comment format:
       ```
       @agent:pm CI/CD Report — <Task-ID> <Task Name>
@@ -580,7 +585,7 @@ Procedure (Azure DevOps):
       - Status: DEPLOYED / ROLLED BACK
       - URL: <endpoint or N/A>
       ```
-  - Transition work item for PM release review (Step 8) — Jira: `transitionJiraIssue` to "In Review"; Azure DevOps: `az boards work-item update --id <ID> --state Active` (`@agent:pm` comment marks release review)
+  - Transition work item for PM release review (Step 8) — Jira: `transitionJiraIssue` to "In Review"; Azure DevOps: `az boards work-item update --id <ID> --state Active` (Agile) or `--state Doing` (Basic) (`@agent:pm` comment marks release review)
 
 ---
 
@@ -816,7 +821,8 @@ ssh -i <AZURE_VM_SSH_KEY_PATH> <AZURE_VM_USER>@$VM_IP "docker stop sdlc-pipeline
 
 > **Platform routing:** "Transition Jira task" = Azure DevOps work item
 > state update via `azure-devops-cli` skill (`references/boards-and-iterations.md`)
-> when `azure-devops` is selected.
+> when `azure-devops` is selected, and/or Jira task transition via Jira MCP
+> when `jira` is selected. When both selected, update both platforms.
 
 If CI/CD, JFrog verification, or SonarCloud fails:
 1. Identify the failing component (lint, test, build, JFrog upload, quality gate, security)
@@ -899,7 +905,7 @@ For local state (default), this file is not needed.
 
 ## MCPs/Skills Reference
 - **GitHub MCP**: workflow monitoring (auto-triggered), check run monitoring, PR status reading (read-only), branch creation, file push (infrastructure files), branch listing, code search, PR reading
-- **Azure DevOps CLI** (`azure-devops-cli` skill): repos/branches/PRs, CI/CD pipelines, work items — alternative to GitHub MCP + Jira MCP (mutually exclusive). Also handles Azure deployment targets: App Service (`az webapp`), Container Apps (`az containerapp`), AKS (`az aks` + `kubectl`), VM (`az vm`). See skill reference files for command syntax.
+- **Azure DevOps CLI** (`azure-devops-cli` skill): repos/branches/PRs, CI/CD pipelines, work items — can coexist with GitHub MCP + Jira MCP. Also handles Azure deployment targets: App Service (`az webapp`), Container Apps (`az containerapp`), AKS (`az aks` + `kubectl`), VM (`az vm`). See skill reference files for command syntax.
 - **JFrog REST API**: artifact verification, build info, repository management, packages (credentials via GitHub Actions secrets/variables or Azure DevOps variable groups, no MCP server)
 - **SonarCloud MCP**: quality gate, issue search, security hotspots, coverage, dependency risks
 - **Jira MCP**: task discovery, status transitions, inter-agent comments
@@ -925,8 +931,8 @@ For local state (default), this file is not needed.
 
 | Step | Conditional Behavior |
 |------|---------------------|
-| **6** (CI/CD) | If `github` NOT selected AND `azure-devops` NOT selected -> **skip entirely** (no CI/CD runtime). If `azure-devops` selected -> use Azure Pipelines (see `azure-devops-cli` skill, `references/pipelines-and-builds.md`) instead of GitHub Actions; secrets/vars in variable groups. If `sonarcloud` NOT selected -> remove SonarCloud tasks from Build stage. If `jfrog` NOT selected -> use Azure Artifacts/ACR stages instead of JFrog stages (if `azure-devops` selected); remove JFrog stages. |
-| **7** (Release) | If `github` NOT selected AND `azure-devops` NOT selected -> skip `dev`->`main` merge (no remote branches). If `azure-devops` selected -> use `azure-devops-cli` skill (`references/repos-and-prs.md`) for merge instead of GitHub MCP. Artifact verification: JFrog REST API (if `jfrog` selected) or Azure Artifacts/ACR via `az acr` (if `jfrog` NOT selected and `azure-devops` selected). |
+| **6** (CI/CD) | If `github` NOT selected AND `azure-devops` NOT selected -> **skip entirely** (no CI/CD runtime). If `azure-devops` selected -> use Azure Pipelines (see `azure-devops-cli` skill, `references/pipelines-and-builds.md`); secrets/vars in variable groups. When both `azure-devops` and `github` selected, run CI/CD on both platforms. If `sonarcloud` NOT selected -> remove SonarCloud tasks from Build stage. If `jfrog` NOT selected -> use Azure Artifacts/ACR stages instead of JFrog stages (if `azure-devops` selected); remove JFrog stages. |
+| **7** (Release) | If `github` NOT selected AND `azure-devops` NOT selected -> skip `dev`->`main` merge (no remote branches). If `azure-devops` selected -> use `azure-devops-cli` skill (`references/repos-and-prs.md`) for Azure merge. When both selected, merge on both platforms. Artifact verification: JFrog REST API (if `jfrog` selected) or Azure Artifacts/ACR via `az acr` (if `jfrog` NOT selected and `azure-devops` selected). |
 | **8** (Deploy) | If `huawei-ecs` NOT selected AND no Azure deploy target (`azure-app-service`, `azure-container-apps`, `azure-aks`, `azure-vm`) selected -> **skip entirely**. If `jfrog` NOT selected but deployment target IS -> use ACR image source (if `azure-devops` selected) or warn. Azure targets: App Service (`az webapp`), Container Apps (`az containerapp`), AKS (`kubectl`), VM (SSH + Docker). See §8.A-§8.D. |
 | **9** (Report) | Report generation always runs (doc-expert always available). |
 

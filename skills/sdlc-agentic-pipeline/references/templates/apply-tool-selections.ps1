@@ -202,3 +202,54 @@ foreach ($file in $agentFiles) {
 Write-Output ""
 Write-Output "Done. Agent frontmatter permission.skill blocks updated based on tool selections."
 Write-Output "Built-in utility skills (ide-tool, doc-expert, pptx, data-analysis, prd, frontend-design, i18n-integration) were not modified."
+
+# --- Install selected skills that require installation ---
+$installerJs = ".codeartsdoer/skills/skill-installer/scripts/installer.js"
+$installedSkills = @()
+
+foreach ($skill in $registry.methodologySkills) {
+    if ($skill.status -ne 'available') { continue }
+    $skillId = $skill.id
+    $isSelected = $selections.tools.$skillId
+    if (-not $isSelected) { continue }
+    if ($skill.type -ne 'install') { continue }
+    if (-not $skill.installCommand) { continue }
+
+    $frontmatterKey = $skill.frontmatterKeys[0]
+    $skillDir = ".codeartsdoer/skills/$frontmatterKey"
+    $alreadyInstalled = Test-Path "$skillDir/SKILL.md"
+
+    Write-Output ""
+    if ($alreadyInstalled) {
+        Write-Output "Skill '$frontmatterKey' already installed — skipping."
+        $installedSkills += $frontmatterKey
+        continue
+    }
+
+    Write-Output "Installing skill '$frontmatterKey' (selected by user)..."
+    $installCmd = $skill.installCommand
+    if (Test-Path $installerJs) {
+        try {
+            $output = & node $installerJs init --target $frontmatterKey 2>&1
+            Write-Output $output
+            if ($LASTEXITCODE -eq 0) {
+                Write-Output "Skill '$frontmatterKey' installed successfully."
+                $installedSkills += $frontmatterKey
+            } else {
+                Write-Output "WARNING: installer.js exited with code $LASTEXITCODE for '$frontmatterKey'."
+                Write-Output "The PM Agent should run this manually: $installCmd"
+            }
+        } catch {
+            Write-Output "WARNING: Failed to install '$frontmatterKey': $_"
+            Write-Output "The PM Agent should run this manually: $installCmd"
+        }
+    } else {
+        Write-Output "WARNING: skill-installer not found at $installerJs"
+        Write-Output "The PM Agent should run this manually: $installCmd"
+    }
+}
+
+if ($installedSkills.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Installed skills: $($installedSkills -join ', ')"
+}

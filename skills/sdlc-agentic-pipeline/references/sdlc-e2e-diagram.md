@@ -15,7 +15,7 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 | STEP 0: SERVICE ONBOARDING  (PM Agent orchestrates; user answers via `question` tool)      |
 +--------------------------------------------------------------------------------------------+
 | 0.0     Auto-provision 8 agent files -> .codeartsdoer/agents/ + install skill-installer    |
-|         + copy bundled brainstorming skill -> .codeartsdoer/skills/brainstorming            |
+|         + copy bundled brainstorming skill -> .codeartsdoer/skills/sdlc-brainstorming            |
 |         Agents: PM, Backend, Frontend, Code Reviewer, Tester, DevOps, Architect, Figma    |
 |                                                                                            |
 | 0.0.5   Multi-Tool Selection — 4 multiselect questions                                     |
@@ -38,6 +38,14 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 | PIPELINE STEPS  (conditional — degrade gracefully when tools unselected)                  |
 +--------------------------------------------------------------------------------------------+
 |                                                                                            |
+| 0.F   PM→Figma Design ... Figma-to-Code (optional): pm-agent (entry) receives raw      |
+|       req + Figma URL + node-id → brainstorm → creates requirement.md → hands off to             |
+|       figma-design-agent (extract + diff vs requirement.md) → user confirms → pm-agent          |
+|       updates requirement.md + creates tasks.md → figma-design hands off to pm-agent →           |
+|       pm-agent breaks down tasks per tasks.md → pushes Epic→Issue→Task to Azure DevOps     |
+
+|  |                                                                                         |
+|  v                                                                                         |
 | 0.DA  Architect Agent ......... Design phase: classify task, DDD/SDD/TDD                   |
 |  |                                                                                         |
 |  v                                                                                         |
@@ -76,14 +84,14 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 +--------------------------------------------------------------------------------------------+
 | Agent          | Steps                  | Responsibility                                  |
 |----------------|------------------------|--------------------------------------------------|
-| PM             | 0,1,1b,2,5,7,8,9       | Orchestrator — READ-ONLY repo, deploy authorize  |
+| PM             | 0,0.F,1,1b,2,5,7,8,9   | Orchestrator, Figma-to-Code entry, requirement.md+tasks.md |
 | Backend        | 0,1b,2,3,5,7,9         | Server-side code, API tests                      |
 | Frontend       | 0,1b,2,3,5,7,9         | Client-side code, UI                             |
 | Code Reviewer  | 4                      | PR review, secret scanning, approval             |
 | Tester         | 5                      | E2E / Playwright tests                            |
 | DevOps         | 0,6,8                  | CI/CD, artifact verify, deployment               |
-| Architect      | 0.DA                   | Design phase: DDD/SDD/TDD classification          |
-| Figma Design   | 0.F                    | Figma→SDD diff, EXCLUSIVE Figma MCP consumer      |
+| Architect      | 0.DA                   | design.md ONLY (**SKIPPED if 0.F ran**; reads figma-extract.md if 0.F didn't run) |
+| Figma Design   | 0.F                    | Figma extract+diff, EXCLUSIVE Figma MCP consumer |
 +--------------------------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------------------------+
@@ -99,7 +107,7 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 | postman             | API testing, collection runs               | Bearer API key    | mcp.json |
 |---------------------|------------------------------------------|-------------------|----------|
 | JFrog       = REST API in .env (NOT an MCP server)                                         |
-| Azure DevOps = az CLI skill (NOT an MCP server) — mutually exclusive with GitHub + Jira     |
+| Azure DevOps = az CLI skill (NOT an MCP server) — can coexist with GitHub + Jira            |
 +--------------------------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------------------------+
@@ -107,7 +115,9 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 +--------------------------------------------------------------------------------------------+
 |                                                                                            |
 | SDD (Spec-Driven Development)                                                               |
-| +-- SDD Toolkit (Huawei built-in) ...... PM, Backend, Frontend, Architect                  |
+| +-- SDD Toolkit (Huawei built-in) ...... PM (requirement.md + tasks.md), Architect (design.md only) |
+|     If Step 0.F ran: PM creates requirement.md + tasks.md from figma-extract.md; design.md SKIPPED |
+
 | +-- OpenSpec ........................... PM, Backend, Frontend, Architect                 |
 |     Rule: first selected = PRIMARY; others = SUPPLEMENTARY                                 |
 |                                                                                            |
@@ -133,7 +143,7 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 | +-- Azure Container Apps (Serverless) ... DevOps            [requires azure-devops + ACR]   |
 | +-- Azure AKS (K8s) ..................... DevOps            [requires azure-devops + ACR]   |
 | +-- Azure VM (IaaS) ..................... DevOps            [requires azure-devops + ACR]   |
-|     Rule: mutually exclusive with GitHub + Jira                                            |
+|     Rule: can coexist with GitHub + Jira; agents route by platform                          |
 +--------------------------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------------------------+
@@ -149,19 +159,24 @@ Complete E2E flow: service onboarding through sprint close, with MCP servers, sk
 | .codeartsdoer/tool-selections.json ... user selections (local, gitignored)                |
 | .codeartsdoer/mcp/mcp_settings.json .. MCP servers (only selected entries)                |
 | <project>/.env ........................ JFrog, ECS, Azure DevOps, Azure deploy, ACR        |
-| .github/workflows/ci-cd.yml ........... GitHub Actions (if github selected)              |
-| azure-pipelines.yml .................... Azure Pipelines — generated at Step 6 by DevOps (if azure-devops selected) |
+| .github/workflows/ci-cd.yml ........... GitHub Actions — generated at Step 6 by DevOps (if github selected; if both, ask user) |
+| azure-pipelines.yml .................... Azure Pipelines — generated at Step 6 by DevOps (if azure-devops selected; if both, ask user) |
 | sonar-project.properties .............. SonarCloud (if sonarcloud selected)               |
 | .codeartsdoer/agents/*.md ............. 8 agent definition files                          |
-| .codeartsdoer/skills/brainstorming ... bundled visual companion skill                     |
+| .codeartsdoer/skills/sdlc-brainstorming ... bundled visual companion skill                     |
 +--------------------------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------------------------+
 | DEVELOPMENT PLAN  (notes for future enhancements)                                         |
 +--------------------------------------------------------------------------------------------+
-| * [DONE] Figma design-to-code: Figma Design Agent (Step 0.F) ingests Figma designs and     |
-|   hands off routing breakdown to pm-agent. PM Agent creates Epic→Issue→Task hierarchy.      |
-| * [DONE] Brainstorming skill: bundled hard copy in skills/brainstorming/ — installed        |
+| * [DONE] Figma-to-Code (Step 0.F): pm-agent is the entry point — user provides raw     |
+|   requirement + Figma URL + node-id. pm-agent creates requirement.md, then hands off to        |
+|   figma-design-agent (extract + diff vs requirement.md). After user confirmation, pm-agent       |
+|   updates requirement.md + creates tasks.md. figma-design-agent hands off to pm-agent,          |
+|   which breaks down tasks per tasks.md and pushes to Azure DevOps.                       |
+
+|   SDD ownership: pm-agent = requirement.md + tasks.md; architect-agent = design.md only.          |
+| * [DONE] Brainstorming skill: bundled hard copy in skills/sdlc-brainstorming/ — installed        |
 |   during onboarding (Step 0.0) alongside agent files and skill-installer.                  |
 | * Replace GitHub MCP with `gh-cli` skill: swap all github_* MCP calls across agents        |
 |   and steps; update capability gating, Tools: lines, and config references.                |

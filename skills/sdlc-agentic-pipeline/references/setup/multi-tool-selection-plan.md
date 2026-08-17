@@ -40,7 +40,7 @@ File: `.codeartsdoer/tool-selections.json`
 
 4 grouped multiselect questions via `question` tool. All `multiple: true`, `custom: false`.
 
-**Q1 — MCP Servers & Services**: GitHub, Jira, SonarCloud, Semgrep, JFrog Artifactory, Huawei Cloud ECS, Azure DevOps CLI (alternative to GitHub + Jira), Azure App Service (PaaS), Azure Container Apps (Serverless), Azure Kubernetes Service (AKS), Azure VM (IaaS), Figma (design-to-code via figma-design-agent), None
+**Q1 — MCP Servers & Services**: GitHub, Jira, SonarCloud, Semgrep, JFrog Artifactory, Huawei Cloud ECS, Azure DevOps CLI (can coexist with GitHub + Jira), Azure App Service (PaaS), Azure Container Apps (Serverless), Azure Kubernetes Service (AKS), Azure VM (IaaS), Figma (design-to-code via figma-design-agent), None
 
 > **Note:** Deployment targets (Huawei ECS, Azure App Service, Container Apps, AKS, VM) are optional here — if not selected, the user will be asked at Step 8 (deploy time).
 **Q2 — SDD**: SDD Toolkit (Huawei Built-in), OpenSpec (coming soon), None
@@ -54,7 +54,7 @@ File: `.codeartsdoer/tool-selections.json`
 4. "None" takes precedence if selected alongside other items
 5. Built-in utility skills never mentioned
 6. **Auto-select (post-processing)**: After Q3 returns, if Postman is selected but Newman is NOT, the PM Agent automatically adds Newman to the selections before writing `tool-selections.json`. Newman's option label is "(auto-selected with Postman)" so users know it will be included. The user sees Newman in the post-selection summary as "(auto-selected via Postman)" and can confirm or reject.
-7. **Mutual exclusion**: If Azure DevOps is selected alongside GitHub or Jira, warn the user — Azure DevOps has its own repos and boards. Ask: "Azure DevOps replaces GitHub and/or Jira. Deselect GitHub and/or Jira?" (Yes/No)
+7. **Coexistence**: Azure DevOps, GitHub, and Jira can all be selected together. When both Azure DevOps and GitHub/Jira are selected, agents route by platform — Azure DevOps CLI for Azure Repos/Boards/Pipelines, GitHub MCP for GitHub repos/issues, Jira MCP for Jira boards. No mutual exclusion is enforced.
 
 ### Post-Selection Summary
 Print selected/skipped items (including auto-selected Newman if Postman chosen), pipeline impact, and dependency warnings. Ask: "Proceed with these selections?" (Yes/No).
@@ -79,7 +79,7 @@ Print selected/skipped items (including auto-selected Newman if Postman chosen),
 | Azure deploy target | Azure DevOps | Azure DevOps required for ACR access — select azure-devops in Q1 |
 | DDD tools | SDD | Domain model used directly without formal spec |
 | Any TDD tool | GitHub | Tests not version-controlled via PRs |
-| Figma | SDD (`sdd` or `openspec`) | Figma diff has no spec to compare against — disable Step 0.F |
+| Figma | SDD (`sdd` or `openspec`) | Figma diff has no requirement.md to compare against — disable Step 0.F |
 | Figma | GitHub and Azure DevOps | figma-extract.md has no PR/pipeline destination — push SDD docs only via `git push` |
 | Figma | Frontend agent | Figma-driven UI cannot be implemented — backend-only diff still useful |
 
@@ -98,14 +98,14 @@ Figma personal access token via `--figma-api-key=...`; no env or headers block.
 ### .env
 Include only JFrog + ECS blocks for selected services (no MCP server for JFrog).
 MCP service config (Jira, GitHub, SonarCloud, Semgrep) is NOT in .env — it lives in mcp_settings.json.
-Azure DevOps config (`AZURE_DEVOPS_ORG_URL`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_REPO`) is in .env; PAT is set via `AZURE_DEVOPS_EXT_PAT` env var at runtime.
+Azure DevOps config (`AZURE_DEVOPS_ORG_URL`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_REPO`) is in .env; PAT is set via `AZURE_DEVOPS_EXT_PAT` **user-level** env var (persisted during onboarding, shared across all agents/sessions).
 Azure deployment config (`AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, target-specific vars) is in .env. See `service-onboarding.md` §0.10.
 
-### ci-cd.yml
-Only if GitHub selected. Stages: build (always), Sonar scan (if SonarCloud), artifact deploy+verify. If GitHub not selected, do not generate. Generate `.github/workflows/ci-cd.yml` from `references/templates/ci-cd.yml`. Artifact backend: JFrog (if selected) or GitHub Packages (if JFrog NOT selected).
+### ci-cd.yml (generated at Step 6, NOT during onboarding)
+NOT generated during onboarding. The DevOps agent generates `.github/workflows/ci-cd.yml` from `references/templates/ci-cd.yml` during Step 6 (CI/CD) if `github` is selected. If both `github` and `azure-devops` are selected, the DevOps agent asks the user via `question` tool which pipeline file to generate. Stages: build (always), Sonar scan (if SonarCloud), artifact deploy+verify. Artifact backend: JFrog (if selected) or GitHub Packages (if JFrog NOT selected).
 
-### azure-pipelines.yml (deferred to Step 6)
-NOT generated during onboarding. The DevOps agent creates `azure-pipelines.yml` from `references/templates/azure-pipelines.yml` during Step 6 (CI/CD) based on the actual project structure and the artifact repository selection recorded in `tool-selections.json`. Artifact backend: JFrog (if selected) or Azure Artifacts/ACR (if JFrog NOT selected).
+### azure-pipelines.yml (generated at Step 6, NOT during onboarding)
+NOT generated during onboarding. The DevOps agent generates `azure-pipelines.yml` from `references/templates/azure-pipelines.yml` during Step 6 (CI/CD) if `azure-devops` is selected, based on the actual project structure and the artifact repository selection recorded in `tool-selections.json`. If both `github` and `azure-devops` are selected, the user is asked which pipeline file to generate (see `ci-cd.yml` section above). Artifact backend: JFrog (if selected) or Azure Artifacts/ACR (if JFrog NOT selected).
 
 ### azure-devops-cli skill
 If `azure-devops` selected, install via `skill-installer` (done in onboarding §0.9):
@@ -133,7 +133,7 @@ Run `apply-tool-selections.ps1` (Windows) or `apply-tool-selections.sh` (macOS/L
 | Skill ID | Frontmatter Keys | Granted To Agents |
 |----------|-----------------|-------------------|
 | `playwright` | `playwright-cli` | Tester |
-| `sdd` | `creating-sdd-directory`, `managing-spec/design/tasks-document` | PM, Backend, Frontend, Architect |
+| `sdd` | `creating-sdd-directory`, `managing-spec/design/tasks-document` | PM (requirement.md + tasks.md), Architect (design.md only) |
 | `openspec` | `openspec` | PM, Backend, Frontend, Architect |
 | `postman` | `postman` | Backend, Architect |
 | `newman` | `newman` | Backend |
@@ -149,7 +149,7 @@ Run `apply-tool-selections.ps1` (Windows) or `apply-tool-selections.sh` (macOS/L
 | `azure-container-apps` | `azure-devops-cli` | DevOps |
 | `azure-aks` | `azure-devops-cli` | DevOps |
 | `azure-vm` | `azure-devops-cli` | DevOps |
-| `figma` | `brainstorming`, `managing-spec-document`, `managing-design-document` | figma-design |
+| `figma` | `sdlc-brainstorming` | figma-design |
 
 ---
 
@@ -157,8 +157,8 @@ Run `apply-tool-selections.ps1` (Windows) or `apply-tool-selections.sh` (macOS/L
 
 | Step | Conditional Logic |
 |------|-------------------|
-| 0.F  | If `figma` NOT selected -> skip (entire Step 0.F is opt-in). If `figma` selected but no SDD directory exists -> skip. Always read figma-extract.md (or skip if absent) in 0.DA / 3 / 5. |
-| 0.DA | If NO methodology tools -> skip. SDD -> spec creation. TDD -> test layer mapping. DDD -> domain model. If `figma` selected -> incorporate figma-extract.md tokens into design.md (read-only consumption). |
+| 0.F  | If `figma` NOT selected -> skip (entire Step 0.F is opt-in). Runs when user provides raw requirement + Figma URL + node-id to pm-agent. pm-agent creates requirement.md -> hands off to figma-design-agent (extract + diff vs requirement.md) -> user confirms -> pm-agent updates requirement.md + creates tasks.md -> pm-agent (task breakdown + Azure push). Always read figma-extract.md (or skip if absent) in 0.DA / 3 / 5. |
+| 0.DA | If NO methodology tools -> skip. If Step 0.F ran -> **SKIP entirely** (requirement.md + tasks.md already created by pm-agent based on figma-extract.md; no design.md created). SDD -> design.md creation (architect-agent owns design.md only; pm-agent owns requirement.md + tasks.md). TDD -> test layer mapping. DDD -> domain model. If `figma` selected but Step 0.F did not run -> incorporate figma-extract.md tokens into design.md (read-only consumption). |
 | 1 | If `jira` NOT selected -> skip Jira tasks. If `github` NOT selected -> analyze local dir. `prd` always available. |
 | 1b | If `jira` NOT selected -> skip review. If `github` NOT selected -> local diff review. |
 | 2 | If `jira` NOT selected -> skip sprint. If `sdd`/`openspec` NOT selected -> skip SDD. |
