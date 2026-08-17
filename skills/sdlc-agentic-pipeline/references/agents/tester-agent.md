@@ -61,7 +61,7 @@ When `UI test`, `integration test` or `E2E test` is required
 > **Read-only Figma consumption:** You NEVER call `figma.get_figma_data` or
 > `figma.download_figma_images`. Figma MCP is EXCLUSIVE to
 > `figma-design-agent` (Step 0.F). You consume Figma data via
-> `specs/<YYYY-MM-DD-...>/figma-extract.md` and the locally-saved Figma
+> `specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md` and the locally-saved Figma
 > images referenced from it.
 
 If `figma` is selected AND `figma-extract.md` exists in the active SDD

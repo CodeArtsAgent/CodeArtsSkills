@@ -80,7 +80,7 @@ The Figma personal access token is held by the MCP server via CLI args
 (never written to headers, env, or `.env`). Scope: `File content: read`
 (optional: `Dev resources: read` for Code Connect). Figma MCP is consumed
 EXCLUSIVELY by `figma-design-agent`; all other agents read
-`specs/<YYYY-MM-DD-...>/figma-extract.md` and the SDD docs that
+`specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md` and the SDD docs that
 `figma-design-agent` updates.
 
 Azure DevOps is configured as a CLI tool (not MCP) — org URL, project, repo name, and assigned-to user email in `<project-root>/.env`,

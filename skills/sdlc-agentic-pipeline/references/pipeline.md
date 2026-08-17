@@ -92,7 +92,7 @@ Step 1: PM Agent — Requirement Breakdown
   3. `pm-agent` hands off to `figma-design-agent` with: `requirement.md` path + Figma URL + node-id
   4. `figma-design-agent` reads `requirement.md` (comparison baseline), runs `figma.get_figma_data` (file key + node-id) — EXCLUSIVE MCP call
   5. `figma-design-agent` runs `figma.download_figma_images` for icons, illustrations, image assets — EXCLUSIVE MCP call
-  6. `figma-design-agent` persists raw extraction: `specs/<YYYY-MM-DD-...>/figma-extract.md`
+  6. `figma-design-agent` persists raw extraction: `specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md`
   7. `figma-design-agent` diffs Figma vs `requirement.md`, categorizes each finding:
      - Missing in spec / Missing in Figma / Mismatch / Outdated
      - Cite frame-ids and spec section numbers
@@ -172,7 +172,7 @@ Step 1: PM Agent — Requirement Breakdown
 
 ### Step 3: Frontend/Backend Agent — Development & Pre-Scan
 - **Owner**: Frontend Agent, Backend Agent
-- **Conditional**: `github` NOT selected AND `azure-devops` NOT selected -> no feature branches, no PRs; commit locally. `azure-devops` selected -> use `azure-devops-cli` skill (`references/repos-and-prs.md`) for Azure branches/PRs, (`references/boards-and-iterations.md`) for Azure status transitions. When both `github` and `azure-devops` selected, create PRs on both platforms. `semgrep` NOT selected -> skip local pre-scan. `figma` selected -> Frontend agent reads `specs/<...>/figma-extract.md` for design tokens, components, and asset paths.
+- **Conditional**: `github` NOT selected AND `azure-devops` NOT selected -> no feature branches, no PRs; commit locally. `azure-devops` selected -> use `azure-devops-cli` skill (`references/repos-and-prs.md`) for Azure branches/PRs, (`references/boards-and-iterations.md`) for Azure status transitions. When both `github` and `azure-devops` selected, create PRs on both platforms. `semgrep` NOT selected -> skip local pre-scan. `figma` selected -> Frontend agent reads `specs/<...>/figma-output/figma-extract.md` for design tokens, components, and asset paths.
 - **Tools**: GitHub MCP, Jira MCP, Bash (linters), Azure DevOps CLI (if `azure-devops` selected), figma-extract.md (read-only, if `figma` selected)
 - **Actions**:
   1. **Prerequisite gate**: verify your assigned Task-level work items exist (Jira: JQL `labels = agent:<this-agent> AND issuetype = Sub-task`; Azure DevOps: WIQL `[System.Tags] CONTAINS 'agent:<this-agent>' AND [System.WorkItemType] = 'Task'`). If none found → report to `@agent:pm`, do NOT start coding.

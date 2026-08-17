@@ -59,7 +59,7 @@ When user mention `design architeture`, `refacting`, `refactor` or directly dele
 **If Step 0.F (Figma-to-Code) already ran -> SKIP this step entirely.** `requirement.md` + `tasks.md` are already created by `pm-agent` based on `figma-extract.md`. No `design.md` is created when the Figma scenario ran.
 
 If Step 0.F did NOT run and `figma` is selected AND
-`specs/<YYYY-MM-DD-...>/figma-extract.md` exists in
+`specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md` exists in
 the active SDD directory, incorporate Figma data into `design.md`:
 
 - Design tokens (color, typography, spacing, radii, shadows) from the extraction

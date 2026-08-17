@@ -352,7 +352,7 @@
         "figma-design-agent.md auto-provisioned to .codeartsdoer/agents/ (Step 0.0)",
         "SDD directory exists (Step 0.F is no-op without one)"
       ],
-      "exclusivity": "figma.get_figma_data and figma.download_figma_images may only be called by figma-design-agent. All other agents consume Figma data via specs/<YYYY-MM-DD-...>/figma-extract.md and the SDD docs that figma-design-agent updates."
+      "exclusivity": "figma.get_figma_data and figma.download_figma_images may only be called by figma-design-agent. All other agents consume Figma data via specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md and the SDD docs that figma-design-agent updates."
     }
   ]
 }

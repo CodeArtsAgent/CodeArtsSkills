@@ -139,7 +139,7 @@ For each task, evaluate from the `[OVERRIDE: domain-specific perspective]`:
 > **Read-only Figma consumption:** Frontend Agent NEVER calls
 > `figma.get_figma_data` or `figma.download_figma_images`. Figma MCP is
 > EXCLUSIVE to `figma-design-agent` (Step 0.F). All Figma data flows through
-> the file `specs/<YYYY-MM-DD-...>/figma-extract.md` and the SDD docs that
+> the file `specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md` and the SDD docs that
 > `figma-design-agent` updates.
 
 If `figma` is selected AND `figma-extract.md` exists in the active SDD

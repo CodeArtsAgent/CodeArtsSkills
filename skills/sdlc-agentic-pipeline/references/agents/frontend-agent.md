@@ -69,7 +69,7 @@ Once you're clear on requirements:
 1. Implement exactly what the task specifies
 2. Leverage the skills you have(e.g. frontend-design) to not only develop corrent feature but also good looking UI and user friendly UX
 3. If there is a `DESIGN.md` in the project root describes the UX and visual design, you must follow it when coding
-4. **Figma-aware implementation (when `figma` selected):** read `specs/<YYYY-MM-DD-...>/figma-extract.md` for design tokens, components, and asset paths. Map Figma semantic components to MUI (preferred) or React Native Paper (native). Apply Code Connect mappings. Copy Figma assets into the repo's `assets/` directory. NEVER call Figma MCP directly.
+4. **Figma-aware implementation (when `figma` selected):** read `specs/<YYYY-MM-DD-...>/figma-output/figma-extract.md` for design tokens, components, and asset paths. Map Figma semantic components to MUI (preferred) or React Native Paper (native). Apply Code Connect mappings. Copy Figma assets into the repo's `assets/` directory. NEVER call Figma MCP directly.
 5. Write tests (following TDD if task says to)
 6. Verify implementation works
 7. Commit your work with task number(try with git command)
